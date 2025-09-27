@@ -1,0 +1,149 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CrediRuta Design System - Financial Microloans Platform
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* CrediRuta Brand Colors */
+    --background: 0 0% 98%;
+    --foreground: 0 0% 13%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 13%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 13%;
+
+    /* Primary: Verde financiero principal */
+    --primary: 122 39% 49%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 122 39% 85%;
+    --primary-dark: 122 39% 35%;
+
+    /* Secondary: Azul corporativo */
+    --secondary: 207 90% 54%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-light: 207 90% 85%;
+
+    /* Success: Verde éxito */
+    --success: 122 39% 49%;
+    --success-foreground: 0 0% 100%;
+    --success-light: 122 39% 95%;
+
+    /* Warning: Naranja advertencia */
+    --warning: 36 100% 50%;
+    --warning-foreground: 0 0% 100%;
+    --warning-light: 36 100% 95%;
+
+    /* Error: Rojo error */
+    --destructive: 4 90% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-light: 4 90% 95%;
+
+    /* Neutral colors */
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 46%;
+
+    --accent: 122 39% 96%;
+    --accent-foreground: 122 39% 35%;
+
+    --border: 0 0% 91%;
+    --input: 0 0% 100%;
+    --ring: 122 39% 49%;
+
+    --radius: 0.5rem;
+
+    /* Financial gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-dark)));
+    --gradient-success: linear-gradient(135deg, hsl(var(--success)), hsl(122 39% 35%));
+    --gradient-card: linear-gradient(145deg, hsl(var(--card)), hsl(0 0% 99%));
+    --gradient-dashboard: linear-gradient(180deg, hsl(var(--background)), hsl(0 0% 96%));
+
+    /* Shadows for depth */
+    --shadow-soft: 0 2px 8px -2px hsl(0 0% 0% / 0.1);
+    --shadow-medium: 0 4px 16px -4px hsl(0 0% 0% / 0.15);
+    --shadow-strong: 0 8px 32px -8px hsl(0 0% 0% / 0.2);
+    --shadow-glow: 0 0 24px hsl(var(--primary) / 0.15);
+
+    /* Animation curves */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    /* Sidebar colors for CrediRuta */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 13%;
+    --sidebar-primary: 122 39% 49%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 122 39% 96%;
+    --sidebar-accent-foreground: 122 39% 35%;
+    --sidebar-border: 0 0% 91%;
+    --sidebar-ring: 122 39% 49%;
+  }
+
+  .dark {
+    /* CrediRuta Dark Mode */
+    --background: 0 0% 9%;
+    --foreground: 0 0% 95%;
+
+    --card: 0 0% 11%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 0 0% 11%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 122 39% 60%;
+    --primary-foreground: 0 0% 9%;
+    --primary-light: 122 39% 25%;
+    --primary-dark: 122 39% 45%;
+
+    --secondary: 207 90% 65%;
+    --secondary-foreground: 0 0% 9%;
+    --secondary-light: 207 90% 25%;
+
+    --success: 122 39% 60%;
+    --success-foreground: 0 0% 9%;
+    --success-light: 122 39% 15%;
+
+    --warning: 36 100% 60%;
+    --warning-foreground: 0 0% 9%;
+    --warning-light: 36 100% 15%;
+
+    --destructive: 4 90% 65%;
+    --destructive-foreground: 0 0% 9%;
+    --destructive-light: 4 90% 15%;
+
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 122 39% 15%;
+    --accent-foreground: 122 39% 85%;
+
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 122 39% 60%;
+
+    /* Sidebar dark mode */
+    --sidebar-background: 0 0% 9%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 122 39% 60%;
+    --sidebar-primary-foreground: 0 0% 9%;
+    --sidebar-accent: 122 39% 15%;
+    --sidebar-accent-foreground: 122 39% 85%;
+    --sidebar-border: 0 0% 20%;
+    --sidebar-ring: 122 39% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
