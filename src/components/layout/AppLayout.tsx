@@ -1,14 +1,35 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "./AppSidebar"
 import { Button } from "@/components/ui/button"
-import { Bell, User, Search } from "lucide-react"
+import { Bell, User, Search, LogOut } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { useAuth } from "@/contexts/AuthContext"
+import { useToast } from "@/hooks/use-toast"
 
 interface AppLayoutProps {
   children: React.ReactNode
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
+  const { signOut, user } = useAuth();
+  const { toast } = useToast();
+
+  const handleSignOut = async () => {
+    const { error } = await signOut();
+    if (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo cerrar sesión",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Sesión cerrada",
+        description: "Has cerrado sesión exitosamente",
+      });
+    }
+  };
+
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="min-h-screen flex w-full bg-background">
@@ -38,6 +59,10 @@ export function AppLayout({ children }: AppLayoutProps) {
               
               <Button variant="ghost" size="icon">
                 <User className="w-5 h-5" />
+              </Button>
+
+              <Button variant="ghost" size="icon" onClick={handleSignOut} title="Cerrar sesión">
+                <LogOut className="w-5 h-5" />
               </Button>
             </div>
           </header>
