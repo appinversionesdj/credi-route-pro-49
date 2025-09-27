@@ -27,55 +27,62 @@ import {
   Cell
 } from "recharts"
 
-// Mock data
+// Data realista del sistema CrediRuta
 const kpiData = {
-  carteraTotal: "₡2,450,000",
-  cobrosDia: "₡185,400",
-  prestamosActivos: 156,
-  morosidad: "12.3%"
+  carteraTotal: "$8,450,000",
+  cobrosDia: "$625,400", 
+  prestamosActivos: 247,
+  morosidad: "8.7%"
 }
 
 const cobrosDiarios = [
-  { dia: "Lun", cobros: 180000, meta: 200000 },
-  { dia: "Mar", cobros: 195000, meta: 200000 },
-  { dia: "Mié", cobros: 185000, meta: 200000 },
-  { dia: "Jue", cobros: 210000, meta: 200000 },
-  { dia: "Vie", cobros: 225000, meta: 200000 },
-  { dia: "Sáb", cobros: 175000, meta: 200000 },
+  { dia: "Lun", cobros: 580000, meta: 650000 },
+  { dia: "Mar", cobros: 695000, meta: 650000 },
+  { dia: "Mié", cobros: 625000, meta: 650000 },
+  { dia: "Jue", cobros: 710000, meta: 650000 },
+  { dia: "Vie", cobros: 785000, meta: 650000 },
+  { dia: "Sáb", cobros: 520000, meta: 650000 },
 ]
 
 const evolucionCartera = [
-  { mes: "Ene", cartera: 2100000 },
-  { mes: "Feb", cartera: 2200000 },
-  { mes: "Mar", cartera: 2350000 },
-  { mes: "Abr", cartera: 2450000 },
+  { mes: "Sep", cartera: 7100000 },
+  { mes: "Oct", cartera: 7800000 },
+  { mes: "Nov", cartera: 8200000 },
+  { mes: "Dic", cartera: 8450000 },
 ]
 
 const distribucionRutas = [
-  { ruta: "Norte", valor: 650000, color: "#4CAF50" },
-  { ruta: "Sur", valor: 580000, color: "#2196F3" },
-  { ruta: "Centro", valor: 720000, color: "#FF9800" },
-  { ruta: "Este", valor: 500000, color: "#9C27B0" },
+  { ruta: "Kennedy", valor: 2150000, color: "#4CAF50" },
+  { ruta: "Suba", valor: 1890000, color: "#2196F3" },
+  { ruta: "Bosa", valor: 2280000, color: "#FF9800" },
+  { ruta: "Ciudad Bolívar", valor: 1630000, color: "#9C27B0" },
+  { ruta: "Engativá", valor: 500000, color: "#FF5722" },
 ]
 
 const actividadReciente = [
   {
     tipo: "pago",
-    descripcion: "María González realizó pago de ₡15,000",
-    tiempo: "Hace 5 min",
-    monto: "₡15,000"
+    descripcion: "Andrea Morales realizó pago de $45,000",
+    tiempo: "Hace 8 min",
+    monto: "$45,000"
   },
   {
     tipo: "prestamo",
-    descripción: "Nuevo préstamo creado para Carlos Ruiz",
-    tiempo: "Hace 15 min",
-    monto: "₡50,000"
+    descripcion: "Nuevo préstamo creado para Jorge Herrera",
+    tiempo: "Hace 22 min",
+    monto: "$280,000"
   },
   {
     tipo: "alerta",
-    descripcion: "3 cuotas vencidas en Ruta Norte",
-    tiempo: "Hace 30 min",
+    descripcion: "5 cuotas vencidas en Ruta Kennedy",
+    tiempo: "Hace 45 min",
     monto: null
+  },
+  {
+    tipo: "pago",
+    descripcion: "Carlos Vargas realizó pago de $38,500",
+    tiempo: "Hace 1 hora",
+    monto: "$38,500"
   }
 ]
 
@@ -87,7 +94,7 @@ export default function Dashboard() {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
           <p className="text-muted-foreground">
-            Resumen general de la operación - {new Date().toLocaleDateString('es-CR', { 
+            Resumen general de la operación - {new Date().toLocaleDateString('es-CO', { 
               weekday: 'long', 
               year: 'numeric', 
               month: 'long', 
@@ -123,15 +130,15 @@ export default function Dashboard() {
           title="Cobros del Día"
           value={kpiData.cobrosDia}
           icon={TrendingUp}
-          change={{ value: 5.4, isPositive: true }}
-          description="Meta: ₡200,000"
+          change={{ value: 12.8, isPositive: true }}
+          description="Meta: $650,000"
         />
         
         <KPICard
           title="Préstamos Activos"
           value={kpiData.prestamosActivos}
           icon={CreditCard}
-          change={{ value: 12, isPositive: true }}
+          change={{ value: 23, isPositive: true }}
           description="Créditos vigentes"
         />
         
@@ -139,7 +146,7 @@ export default function Dashboard() {
           title="Morosidad"
           value={kpiData.morosidad}
           icon={AlertTriangle}
-          change={{ value: -2.1, isPositive: true }}
+          change={{ value: -1.8, isPositive: true }}
           description="Cuotas vencidas"
           variant="warning"
         />
@@ -162,7 +169,7 @@ export default function Dashboard() {
                 <XAxis dataKey="dia" />
                 <YAxis />
                 <Tooltip 
-                  formatter={(value) => [`₡${value.toLocaleString()}`, ""]}
+                  formatter={(value) => [`$${value.toLocaleString()}`, ""]}
                 />
                 <Bar dataKey="cobros" fill="hsl(var(--primary))" radius={4} />
                 <Bar dataKey="meta" fill="hsl(var(--muted))" radius={4} />
@@ -186,7 +193,7 @@ export default function Dashboard() {
                 <XAxis dataKey="mes" />
                 <YAxis />
                 <Tooltip 
-                  formatter={(value) => [`₡${value.toLocaleString()}`, "Cartera"]}
+                  formatter={(value) => [`$${value.toLocaleString()}`, "Cartera"]}
                 />
                 <Line 
                   type="monotone" 
@@ -222,7 +229,7 @@ export default function Dashboard() {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => `₡${value.toLocaleString()}`} />
+                <Tooltip formatter={(value) => `$${value.toLocaleString()}`} />
               </PieChart>
             </ResponsiveContainer>
             <div className="space-y-2 mt-4">
@@ -235,7 +242,7 @@ export default function Dashboard() {
                     />
                     <span>{ruta.ruta}</span>
                   </div>
-                  <span className="font-medium">₡{ruta.valor.toLocaleString()}</span>
+                  <span className="font-medium">${ruta.valor.toLocaleString()}</span>
                 </div>
               ))}
             </div>

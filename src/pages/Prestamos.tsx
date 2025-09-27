@@ -18,49 +18,94 @@ import {
 
 const mockPrestamos = [
   {
-    id: "P001",
-    cliente: "María González",
-    cedula: "1-1234-5678",
-    monto: 100000,
-    plazo: 12,
-    cuotasPagadas: 8,
-    cuotasTotales: 12,
+    id: "CR001",
+    numerosPrestamo: "001",
+    cliente: "Andrea Morales Jiménez",
+    cedula: "52.456.789",
+    monto: 500000,
+    plazo: 20,
+    cuotasPagadas: 14,
+    cuotasTotales: 20,
     proximaFecha: "2024-02-01",
-    valorCuota: 9500,
-    saldoPendiente: 38000,
+    valorCuota: 28500,
+    saldoPendiente: 171000,
     estado: "activo",
-    ruta: "Norte",
-    fechaDesembolso: "2023-02-01"
+    ruta: "Kennedy",
+    fechaDesembolso: "2023-06-15",
+    periodicidad: "diario",
+    tasaInteres: 0.05
   },
   {
-    id: "P002",
-    cliente: "Carlos Rodríguez",
-    cedula: "2-2345-6789",
-    monto: 75000,
-    plazo: 10,
-    cuotasPagadas: 6,
-    cuotasTotales: 10,
+    id: "CR002",
+    numerosPrestamo: "002", 
+    cliente: "Jorge Herrera Castro",
+    cedula: "79.123.456",
+    monto: 350000,
+    plazo: 15,
+    cuotasPagadas: 8,
+    cuotasTotales: 15,
     proximaFecha: "2024-01-25",
-    valorCuota: 8250,
-    saldoPendiente: 33000,
+    valorCuota: 26800,
+    saldoPendiente: 187600,
     estado: "vencido",
-    ruta: "Sur",
-    fechaDesembolso: "2023-04-01"
+    ruta: "Suba",
+    fechaDesembolso: "2023-09-01",
+    periodicidad: "diario",
+    tasaInteres: 0.05
   },
   {
-    id: "P003",
-    cliente: "Ana Vargas",
-    cedula: "1-3456-7890",
-    monto: 150000,
-    plazo: 18,
-    cuotasPagadas: 12,
-    cuotasTotales: 18,
+    id: "CR003",
+    numerosPrestamo: "003",
+    cliente: "Carolina Vargas López",
+    cedula: "41.789.234", 
+    monto: 800000,
+    plazo: 30,
+    cuotasPagadas: 18,
+    cuotasTotales: 30,
     proximaFecha: "2024-02-05",
-    valorCuota: 9800,
-    saldoPendiente: 58800,
+    valorCuota: 32000,
+    saldoPendiente: 384000,
     estado: "activo",
-    ruta: "Centro",
-    fechaDesembolso: "2022-08-01"
+    ruta: "Bosa",
+    fechaDesembolso: "2023-07-10",
+    periodicidad: "diario", 
+    tasaInteres: 0.04
+  },
+  {
+    id: "CR004",
+    numerosPrestamo: "004",
+    cliente: "Luis Fernando Ramírez",
+    cedula: "15.234.567",
+    monto: 250000,
+    plazo: 12,
+    cuotasPagadas: 9,
+    cuotasTotales: 12,
+    proximaFecha: "2024-01-30",
+    valorCuota: 23500,
+    saldoPendiente: 70500,
+    estado: "activo",
+    ruta: "Ciudad Bolívar",
+    fechaDesembolso: "2023-10-15",
+    periodicidad: "diario",
+    tasaInteres: 0.06
+  },
+  {
+    id: "CR005",
+    numerosPrestamo: "005",
+    cliente: "María José Ruiz",
+    cedula: "63.345.678",
+    monto: 450000,
+    plazo: 18,
+    cuotasPagadas: 5,
+    cuotasTotales: 18,
+    proximaFecha: "2024-02-03",
+    valorCuota: 29500,
+    saldoPendiente: 383500,
+    estado: "activo",
+    ruta: "Engativá",
+    fechaDesembolso: "2023-11-20",
+    periodicidad: "diario",
+    tasaInteres: 0.05
   }
 ]
 
@@ -111,7 +156,7 @@ export default function Prestamos() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Cartera Total</p>
-                <p className="text-xl font-bold">₡325,000</p>
+                <p className="text-xl font-bold">$1,196,600</p>
               </div>
             </div>
           </CardContent>
@@ -125,7 +170,7 @@ export default function Prestamos() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Activos</p>
-                <p className="text-xl font-bold">2</p>
+                <p className="text-xl font-bold">4</p>
               </div>
             </div>
           </CardContent>
@@ -153,7 +198,7 @@ export default function Prestamos() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Por Vencer</p>
-                <p className="text-xl font-bold">₡27,550</p>
+                <p className="text-xl font-bold">$139,300</p>
               </div>
             </div>
           </CardContent>
@@ -196,7 +241,7 @@ export default function Prestamos() {
                     <div>
                       <h3 className="font-semibold">{prestamo.cliente}</h3>
                       <p className="text-sm text-muted-foreground">{prestamo.id}</p>
-                      <p className="text-xs text-muted-foreground">{prestamo.cedula}</p>
+                      <p className="text-xs text-muted-foreground">CC: {prestamo.cedula}</p>
                     </div>
                   </div>
                 </div>
@@ -206,15 +251,15 @@ export default function Prestamos() {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Monto Original</span>
-                      <span className="font-medium">₡{prestamo.monto.toLocaleString()}</span>
+                      <span className="font-medium">${prestamo.monto.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Saldo Pendiente</span>
-                      <span className="font-bold text-destructive">₡{prestamo.saldoPendiente.toLocaleString()}</span>
+                      <span className="font-bold text-destructive">${prestamo.saldoPendiente.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Valor Cuota</span>
-                      <span className="font-medium">₡{prestamo.valorCuota.toLocaleString()}</span>
+                      <span className="font-medium">${prestamo.valorCuota.toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
@@ -247,7 +292,7 @@ export default function Prestamos() {
                       </div>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Calendar className="w-3 h-3" />
-                        <span>Próx: {new Date(prestamo.proximaFecha).toLocaleDateString('es-CR')}</span>
+                        <span>Próx: {new Date(prestamo.proximaFecha).toLocaleDateString('es-CO')}</span>
                       </div>
                     </div>
                   </div>

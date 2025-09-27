@@ -17,36 +17,73 @@ import {
 const mockClientes = [
   {
     id: 1,
-    nombre: "María González",
-    cedula: "1-1234-5678",
-    telefono: "8888-1234",
-    direccion: "San José, Costa Rica",
+    nombre: "Andrea Morales",
+    apellido: "Jiménez",
+    cedula: "52.456.789",
+    telefono: "315 234 5678",
+    direccion: "Cra 68 # 42-15, Kennedy, Bogotá",
     prestamosActivos: 2,
-    totalDeuda: 125000,
+    totalDeuda: 450000,
     estado: "activo",
-    ultimoPago: "2024-01-15"
+    ultimoPago: "2024-01-15",
+    ocupacion: "Comerciante",
+    ruta: "Kennedy"
   },
   {
     id: 2,
-    nombre: "Carlos Rodríguez",
-    cedula: "2-2345-6789",
-    telefono: "8888-5678",
-    direccion: "Cartago, Costa Rica",
+    nombre: "Jorge Herrera",
+    apellido: "Castro",
+    cedula: "79.123.456",
+    telefono: "301 876 5432",
+    direccion: "Calle 145 # 92-08, Suba, Bogotá",
     prestamosActivos: 1,
-    totalDeuda: 75000,
+    totalDeuda: 280000,
     estado: "moroso",
-    ultimoPago: "2023-12-20"
+    ultimoPago: "2023-12-20",
+    ocupacion: "Mecánico",
+    ruta: "Suba"
   },
   {
     id: 3,
-    nombre: "Ana Vargas",
-    cedula: "1-3456-7890",
-    telefono: "8888-9012",
-    direccion: "Alajuela, Costa Rica",
+    nombre: "Carolina Vargas",
+    apellido: "López",
+    cedula: "41.789.234",
+    telefono: "318 567 8901",
+    direccion: "Tv 78 # 65-20, Bosa, Bogotá",
     prestamosActivos: 3,
-    totalDeuda: 200000,
+    totalDeuda: 680000,
     estado: "activo",
-    ultimoPago: "2024-01-20"
+    ultimoPago: "2024-01-20",
+    ocupacion: "Vendedora",
+    ruta: "Bosa"
+  },
+  {
+    id: 4,
+    nombre: "Luis Fernando",
+    apellido: "Ramírez",
+    cedula: "15.234.567",
+    telefono: "300 123 4567",
+    direccion: "Cra 15 # 18-35, Ciudad Bolívar, Bogotá",
+    prestamosActivos: 1,
+    totalDeuda: 195000,
+    estado: "activo",
+    ultimoPago: "2024-01-18",
+    ocupacion: "Conductor",
+    ruta: "Ciudad Bolívar"
+  },
+  {
+    id: 5,
+    nombre: "María José",
+    apellido: "Ruiz",
+    cedula: "63.345.678",
+    telefono: "310 456 7890",
+    direccion: "Calle 80 # 102-45, Engativá, Bogotá",
+    prestamosActivos: 2,
+    totalDeuda: 390000,
+    estado: "activo",
+    ultimoPago: "2024-01-22",
+    ocupacion: "Peluquera",
+    ruta: "Engativá"
   }
 ]
 
@@ -150,11 +187,11 @@ export default function Clientes() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Deuda Total</span>
                   <span className="font-bold text-lg">
-                    ₡{cliente.totalDeuda.toLocaleString()}
+                    ${cliente.totalDeuda.toLocaleString()}
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Último pago: {new Date(cliente.ultimoPago).toLocaleDateString('es-CR')}
+                  Último pago: {new Date(cliente.ultimoPago).toLocaleDateString('es-CO')}
                 </p>
               </div>
             </CardContent>
@@ -168,9 +205,9 @@ export default function Clientes() {
           <CardTitle>Resumen de Clientes</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
             <div className="text-center p-4 bg-success-light/20 rounded-lg">
-              <p className="text-2xl font-bold text-success">2</p>
+              <p className="text-2xl font-bold text-success">4</p>
               <p className="text-sm text-muted-foreground">Clientes Activos</p>
             </div>
             <div className="text-center p-4 bg-warning-light/20 rounded-lg">
@@ -178,8 +215,12 @@ export default function Clientes() {
               <p className="text-sm text-muted-foreground">Clientes Morosos</p>
             </div>
             <div className="text-center p-4 bg-primary/10 rounded-lg">
-              <p className="text-2xl font-bold text-primary">₡400,000</p>
+              <p className="text-2xl font-bold text-primary">$1,995,000</p>
               <p className="text-sm text-muted-foreground">Deuda Total</p>
+            </div>
+            <div className="text-center p-4 bg-secondary/10 rounded-lg">
+              <p className="text-2xl font-bold text-secondary">9</p>
+              <p className="text-sm text-muted-foreground">Préstamos Activos</p>
             </div>
           </div>
         </CardContent>
