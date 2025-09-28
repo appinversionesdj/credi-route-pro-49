@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Shield, UserPlus, LogIn, KeyRound } from 'lucide-react';
+import creditflow_logo from '@/assets/creditflow-logo-large.svg';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
@@ -144,10 +145,14 @@ const Auth = () => {
       <div className="w-full max-w-md space-y-6">
         {/* Logo */}
         <div className="text-center">
-          <div className="mx-auto w-16 h-16 bg-primary rounded-xl flex items-center justify-center mb-4">
-            <Shield className="w-8 h-8 text-primary-foreground" />
+          <div className="mx-auto w-16 h-16 mb-4">
+            <img 
+              src={creditflow_logo} 
+              alt="CREDITFLOW Logo" 
+              className="w-16 h-16"
+            />
           </div>
-          <h1 className="text-3xl font-bold text-foreground">CrediRuta</h1>
+          <h1 className="text-3xl font-bold text-foreground">CREDITFLOW</h1>
           <p className="text-muted-foreground mt-2">Sistema de gestión de préstamos</p>
         </div>
 

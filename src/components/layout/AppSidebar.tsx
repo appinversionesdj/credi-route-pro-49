@@ -13,7 +13,7 @@ import {
   Menu
 } from "lucide-react"
 import { NavLink, useLocation } from "react-router-dom"
-import crediruta_logo from "@/assets/crediruta-logo.png"
+import creditflow_logo from "@/assets/creditflow-logo-large.svg"
 
 import {
   Sidebar,
@@ -107,25 +107,21 @@ export function AppSidebar() {
 
   return (
     <Sidebar className={collapsed ? "w-16" : "w-64"} collapsible="icon">
-      <SidebarHeader className="border-b border-sidebar-border p-4">
+      <SidebarHeader className="border-b border-sidebar-border p-2">
         {!collapsed && (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center">
             <img 
-              src={crediruta_logo} 
-              alt="CrediRuta Logo" 
-              className="w-8 h-8 rounded-lg"
+              src={creditflow_logo} 
+              alt="CREDITFLOW Logo" 
+              className="w-48 h-12"
             />
-            <div>
-              <h2 className="font-bold text-lg text-sidebar-foreground">CrediRuta</h2>
-              <p className="text-xs text-sidebar-foreground/70">Gestión de Microcréditos</p>
-            </div>
           </div>
         )}
         {collapsed && (
           <img 
-            src={crediruta_logo} 
-            alt="CrediRuta Logo" 
-            className="w-8 h-8 rounded-lg mx-auto"
+            src={creditflow_logo} 
+            alt="CREDITFLOW Logo" 
+            className="w-14 h-4 mx-auto"
           />
         )}
       </SidebarHeader>

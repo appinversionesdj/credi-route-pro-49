@@ -2,58 +2,58 @@
 @tailwind components;
 @tailwind utilities;
 
-/* CrediRuta Design System - Financial Microloans Platform
+/* CREDITFLOW Design System - Financial Microloans Platform
 All colors MUST be HSL.
 */
 
 @layer base {
   :root {
-    /* CrediRuta Brand Colors */
-    --background: 0 0% 98%;
-    --foreground: 0 0% 13%;
+    /* CREDITFLOW Brand Colors - Nueva Paleta */
+    --background: 0 0% 97%; /* #F7F7F7 */
+    --foreground: 200 16% 22%; /* #2D3941 - Primary Dark para texto principal */
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 13%;
+    --card-foreground: 200 16% 22%; /* #2D3941 */
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 13%;
+    --popover-foreground: 200 16% 22%; /* #2D3941 */
 
-    /* Primary: Verde financiero principal */
-    --primary: 122 39% 49%;
+    /* Primary: Primary Dark */
+    --primary: 200 16% 22%; /* #2D3941 */
     --primary-foreground: 0 0% 100%;
-    --primary-light: 122 39% 85%;
-    --primary-dark: 122 39% 35%;
+    --primary-light: 200 16% 85%;
+    --primary-dark: 200 16% 15%;
 
-    /* Secondary: Azul corporativo */
-    --secondary: 207 90% 54%;
+    /* Secondary: Secondary Accent */
+    --secondary: 175 24% 45%; /* #5C8C88 */
     --secondary-foreground: 0 0% 100%;
-    --secondary-light: 207 90% 85%;
+    --secondary-light: 175 24% 85%;
 
-    /* Success: Verde éxito */
+    /* Success: Verde éxito (mantener para consistencia) */
     --success: 122 39% 49%;
     --success-foreground: 0 0% 100%;
     --success-light: 122 39% 95%;
 
-    /* Warning: Naranja advertencia */
-    --warning: 36 100% 50%;
+    /* Warning: Highlight/CTA */
+    --warning: 20 60% 63%; /* #D98C64 */
     --warning-foreground: 0 0% 100%;
-    --warning-light: 36 100% 95%;
+    --warning-light: 20 60% 95%;
 
-    /* Error: Rojo error */
+    /* Error: Rojo error (mantener para consistencia) */
     --destructive: 4 90% 58%;
     --destructive-foreground: 0 0% 100%;
     --destructive-light: 4 90% 95%;
 
     /* Neutral colors */
     --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 46%;
+    --muted-foreground: 200 16% 35%; /* Más oscuro para mejor legibilidad */
 
-    --accent: 122 39% 96%;
-    --accent-foreground: 122 39% 35%;
+    --accent: 175 24% 96%; /* Secondary Accent light */
+    --accent-foreground: 200 16% 22%; /* Primary Dark */
 
     --border: 0 0% 91%;
     --input: 0 0% 100%;
-    --ring: 122 39% 49%;
+    --ring: 200 16% 22%; /* Primary Dark */
 
     --radius: 0.5rem;
 
@@ -73,68 +73,68 @@ All colors MUST be HSL.
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
-    /* Sidebar colors for CrediRuta */
+    /* Sidebar colors for CREDITFLOW - Nueva Paleta */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 0 0% 13%;
-    --sidebar-primary: 122 39% 49%;
+    --sidebar-foreground: 200 16% 22%; /* Primary Dark */
+    --sidebar-primary: 200 16% 22%; /* Primary Dark */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 122 39% 96%;
-    --sidebar-accent-foreground: 122 39% 35%;
+    --sidebar-accent: 175 24% 96%; /* Secondary Accent light */
+    --sidebar-accent-foreground: 200 16% 22%; /* Primary Dark */
     --sidebar-border: 0 0% 91%;
-    --sidebar-ring: 122 39% 49%;
+    --sidebar-ring: 200 16% 22%; /* Primary Dark */
   }
 
   .dark {
-    /* CrediRuta Dark Mode */
-    --background: 0 0% 9%;
+    /* CREDITFLOW Dark Mode - Nueva Paleta */
+    --background: 200 16% 9%; /* Primary Dark más oscuro */
     --foreground: 0 0% 95%;
 
-    --card: 0 0% 11%;
+    --card: 200 16% 11%;
     --card-foreground: 0 0% 95%;
 
-    --popover: 0 0% 11%;
+    --popover: 200 16% 11%;
     --popover-foreground: 0 0% 95%;
 
-    --primary: 122 39% 60%;
-    --primary-foreground: 0 0% 9%;
-    --primary-light: 122 39% 25%;
-    --primary-dark: 122 39% 45%;
+    --primary: 175 24% 60%; /* Secondary Accent más claro */
+    --primary-foreground: 200 16% 9%;
+    --primary-light: 175 24% 25%;
+    --primary-dark: 175 24% 45%;
 
-    --secondary: 207 90% 65%;
-    --secondary-foreground: 0 0% 9%;
-    --secondary-light: 207 90% 25%;
+    --secondary: 20 60% 70%; /* Highlight/CTA más claro */
+    --secondary-foreground: 200 16% 9%;
+    --secondary-light: 20 60% 25%;
 
     --success: 122 39% 60%;
-    --success-foreground: 0 0% 9%;
+    --success-foreground: 200 16% 9%;
     --success-light: 122 39% 15%;
 
-    --warning: 36 100% 60%;
-    --warning-foreground: 0 0% 9%;
-    --warning-light: 36 100% 15%;
+    --warning: 20 60% 70%; /* Highlight/CTA */
+    --warning-foreground: 200 16% 9%;
+    --warning-light: 20 60% 15%;
 
     --destructive: 4 90% 65%;
-    --destructive-foreground: 0 0% 9%;
+    --destructive-foreground: 200 16% 9%;
     --destructive-light: 4 90% 15%;
 
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 60%;
+    --muted: 200 16% 15%;
+    --muted-foreground: 0 0% 70%;
 
-    --accent: 122 39% 15%;
-    --accent-foreground: 122 39% 85%;
+    --accent: 175 24% 15%;
+    --accent-foreground: 175 24% 85%;
 
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
-    --ring: 122 39% 60%;
+    --border: 200 16% 20%;
+    --input: 200 16% 20%;
+    --ring: 175 24% 60%;
 
     /* Sidebar dark mode */
-    --sidebar-background: 0 0% 9%;
+    --sidebar-background: 200 16% 9%;
     --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 122 39% 60%;
-    --sidebar-primary-foreground: 0 0% 9%;
-    --sidebar-accent: 122 39% 15%;
-    --sidebar-accent-foreground: 122 39% 85%;
-    --sidebar-border: 0 0% 20%;
-    --sidebar-ring: 122 39% 60%;
+    --sidebar-primary: 175 24% 60%;
+    --sidebar-primary-foreground: 200 16% 9%;
+    --sidebar-accent: 175 24% 15%;
+    --sidebar-accent-foreground: 175 24% 85%;
+    --sidebar-border: 200 16% 20%;
+    --sidebar-ring: 175 24% 60%;
   }
 }
 

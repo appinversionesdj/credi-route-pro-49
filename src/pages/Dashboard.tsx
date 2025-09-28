@@ -27,7 +27,7 @@ import {
   Cell
 } from "recharts"
 
-// Data realista del sistema CrediRuta
+// Data realista del sistema CREDITFLOW
 const kpiData = {
   carteraTotal: "$8,450,000",
   cobrosDia: "$625,400", 
