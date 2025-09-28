@@ -112,8 +112,6 @@ export function CronogramaPagos({ cronograma, onPagarCuota, onEliminarPago }: Cr
                   className={`border-b hover:bg-gray-50 transition-colors ${
                     cuota.estado === 'pagado' 
                       ? 'bg-green-50' 
-                      : cuota.estado === 'abonado'
-                      ? 'bg-blue-50'
                       : cuota.estado === 'vencido'
                       ? 'bg-red-50'
                       : ''
@@ -159,7 +157,7 @@ export function CronogramaPagos({ cronograma, onPagarCuota, onEliminarPago }: Cr
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
-                        {(cuota.estado === 'pendiente' || cuota.estado === 'abonado' || cuota.estado === 'vencido') && onPagarCuota && (
+                        {(cuota.estado === 'pendiente' || cuota.estado === 'vencido') && onPagarCuota && (
                           <DropdownMenuItem onClick={() => onPagarCuota(cuota)} className="text-xs">
                             <CreditCard className="mr-2 h-3 w-3" />
                             Pagar Cuota

@@ -102,7 +102,7 @@ export const usePagos = () => {
             valor_pagado: nuevoValorPagado,
             estado: estado,
             fecha_pago: valorAplicado > 0 ? pagoData.fecha_pago : cuota.fecha_pago,
-            observaciones_pago: pagoData.observaciones || cuota.observaciones_pago,
+            observaciones_pago: pagoData.observaciones,
             fecha_actualizacion: new Date().toISOString(),
           })
 
@@ -231,7 +231,17 @@ export const usePagos = () => {
         .order('fecha_pago', { ascending: false })
 
       if (error) throw error
-      return data || []
+      return (data || []).map(item => ({
+        id: item.id,
+        prestamo_id: item.cronograma_pagos.prestamo_id,
+        monto: item.monto_pagado,
+        fecha_pago: item.fecha_pago,
+        metodo_pago: item.tipo_pago,
+        observaciones: item.observaciones,
+        recibo_numero: item.foto_comprobante_url,
+        fecha_creacion: item.fecha_pago,
+        creado_por: null
+      }))
     } catch (error) {
       console.error('Error obteniendo pagos:', error)
       return []
