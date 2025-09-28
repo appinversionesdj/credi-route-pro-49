@@ -1,104 +1,71 @@
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useEffect } from "react"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { 
   Plus, 
   Search, 
-  Filter, 
-  MoreHorizontal,
-  User,
-  Phone,
-  MapPin,
-  CreditCard
+  Filter,
+  Loader2
 } from "lucide-react"
-
-const mockClientes = [
-  {
-    id: 1,
-    nombre: "Andrea Morales",
-    apellido: "Jiménez",
-    cedula: "52.456.789",
-    telefono: "315 234 5678",
-    direccion: "Cra 68 # 42-15, Kennedy, Bogotá",
-    prestamosActivos: 2,
-    totalDeuda: 450000,
-    estado: "activo",
-    ultimoPago: "2024-01-15",
-    ocupacion: "Comerciante",
-    ruta: "Kennedy"
-  },
-  {
-    id: 2,
-    nombre: "Jorge Herrera",
-    apellido: "Castro",
-    cedula: "79.123.456",
-    telefono: "301 876 5432",
-    direccion: "Calle 145 # 92-08, Suba, Bogotá",
-    prestamosActivos: 1,
-    totalDeuda: 280000,
-    estado: "moroso",
-    ultimoPago: "2023-12-20",
-    ocupacion: "Mecánico",
-    ruta: "Suba"
-  },
-  {
-    id: 3,
-    nombre: "Carolina Vargas",
-    apellido: "López",
-    cedula: "41.789.234",
-    telefono: "318 567 8901",
-    direccion: "Tv 78 # 65-20, Bosa, Bogotá",
-    prestamosActivos: 3,
-    totalDeuda: 680000,
-    estado: "activo",
-    ultimoPago: "2024-01-20",
-    ocupacion: "Vendedora",
-    ruta: "Bosa"
-  },
-  {
-    id: 4,
-    nombre: "Luis Fernando",
-    apellido: "Ramírez",
-    cedula: "15.234.567",
-    telefono: "300 123 4567",
-    direccion: "Cra 15 # 18-35, Ciudad Bolívar, Bogotá",
-    prestamosActivos: 1,
-    totalDeuda: 195000,
-    estado: "activo",
-    ultimoPago: "2024-01-18",
-    ocupacion: "Conductor",
-    ruta: "Ciudad Bolívar"
-  },
-  {
-    id: 5,
-    nombre: "María José",
-    apellido: "Ruiz",
-    cedula: "63.345.678",
-    telefono: "310 456 7890",
-    direccion: "Calle 80 # 102-45, Engativá, Bogotá",
-    prestamosActivos: 2,
-    totalDeuda: 390000,
-    estado: "activo",
-    ultimoPago: "2024-01-22",
-    ocupacion: "Peluquera",
-    ruta: "Engativá"
-  }
-]
+import { useClientes } from "@/hooks/useClientes"
+import { ClienteFiltros } from "@/types/cliente"
+import ClienteCard from "@/components/clientes/ClienteCard"
+import ClienteEstadisticas from "@/components/clientes/ClienteEstadisticas"
+import FormularioCliente from "@/components/clientes/FormularioCliente"
 
 export default function Clientes() {
   const [searchTerm, setSearchTerm] = useState("")
+  const [filtros, setFiltros] = useState<ClienteFiltros>({})
+  const [estadisticas, setEstadisticas] = useState(null)
+  const [showFormulario, setShowFormulario] = useState(false)
+  
+  // Hook para manejar clientes con Supabase
+  const { clientes, loading, error, obtenerEstadisticas, crearCliente } = useClientes(filtros)
 
-  const getEstadoBadge = (estado: string) => {
-    switch (estado) {
-      case "activo":
-        return <Badge variant="secondary" className="bg-success-light text-success">Activo</Badge>
-      case "moroso":
-        return <Badge variant="destructive">Moroso</Badge>
-      default:
-        return <Badge variant="outline">{estado}</Badge>
+  // Cargar estadísticas al montar el componente
+  useEffect(() => {
+    const cargarEstadisticas = async () => {
+      const stats = await obtenerEstadisticas()
+      setEstadisticas(stats)
     }
+    cargarEstadisticas()
+  }, [clientes]) // Recargar cuando cambien los clientes
+
+  // Actualizar filtros cuando cambie el término de búsqueda
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setFiltros(prev => ({
+        ...prev,
+        busqueda: searchTerm || undefined
+      }))
+    }, 500) // Debounce de 500ms
+
+    return () => clearTimeout(timeoutId)
+  }, [searchTerm])
+
+  const handleClienteView = (cliente: any) => {
+    // TODO: Implementar vista de detalle del cliente
+    console.log("Ver cliente:", cliente)
+  }
+
+  const handleClienteEdit = (cliente: any) => {
+    // TODO: Implementar edición del cliente
+    console.log("Editar cliente:", cliente)
+  }
+
+  const handleClienteDelete = (id: string) => {
+    // TODO: Implementar eliminación del cliente
+    console.log("Eliminar cliente:", id)
+  }
+
+  const handleNuevoCliente = () => {
+    setShowFormulario(true)
+  }
+
+  const handleSubmitCliente = async (clienteData: any) => {
+    const cliente = await crearCliente(clienteData)
+    return !!cliente
   }
 
   return (
@@ -112,7 +79,7 @@ export default function Clientes() {
           </p>
         </div>
         
-        <Button>
+        <Button onClick={handleNuevoCliente}>
           <Plus className="w-4 h-4 mr-2" />
           Nuevo Cliente
         </Button>
@@ -129,9 +96,10 @@ export default function Clientes() {
                 className="pl-10"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                disabled={loading}
               />
             </div>
-            <Button variant="outline">
+            <Button variant="outline" disabled={loading}>
               <Filter className="w-4 h-4 mr-2" />
               Filtros
             </Button>
@@ -139,92 +107,71 @@ export default function Clientes() {
         </CardContent>
       </Card>
 
+      {/* Error State */}
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2 text-red-800">
+              <span className="font-medium">Error:</span>
+              <span>{error}</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <span className="ml-2 text-muted-foreground">Cargando clientes...</span>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!loading && !error && clientes.length === 0 && (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <div className="text-muted-foreground">
+              <p className="text-lg font-medium mb-2">No se encontraron clientes</p>
+              <p className="text-sm">
+                {searchTerm 
+                  ? "Intenta con otros términos de búsqueda" 
+                  : "Comienza agregando tu primer cliente"
+                }
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Clientes Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {mockClientes.map((cliente) => (
-          <Card key={cliente.id} className="hover:shadow-lg transition-shadow cursor-pointer">
-            <CardHeader className="pb-3">
-              <div className="flex justify-between items-start">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                    <User className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg">{cliente.nombre}</CardTitle>
-                    <p className="text-sm text-muted-foreground">{cliente.cedula}</p>
-                  </div>
-                </div>
-                <Button variant="ghost" size="icon">
-                  <MoreHorizontal className="w-4 h-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Estado</span>
-                {getEstadoBadge(cliente.estado)}
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <Phone className="w-4 h-4 text-muted-foreground" />
-                  <span>{cliente.telefono}</span>
-                </div>
-                
-                <div className="flex items-center gap-2 text-sm">
-                  <MapPin className="w-4 h-4 text-muted-foreground" />
-                  <span className="truncate">{cliente.direccion}</span>
-                </div>
-                
-                <div className="flex items-center gap-2 text-sm">
-                  <CreditCard className="w-4 h-4 text-muted-foreground" />
-                  <span>{cliente.prestamosActivos} préstamo(s) activo(s)</span>
-                </div>
-              </div>
-              
-              <div className="pt-2 border-t">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Deuda Total</span>
-                  <span className="font-bold text-lg">
-                    ${cliente.totalDeuda.toLocaleString()}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Último pago: {new Date(cliente.ultimoPago).toLocaleDateString('es-CO')}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {!loading && !error && clientes.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {clientes.map((cliente) => (
+            <ClienteCard
+              key={cliente.id}
+              cliente={cliente}
+              onView={handleClienteView}
+              onEdit={handleClienteEdit}
+              onDelete={handleClienteDelete}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Stats Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Resumen de Clientes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
-            <div className="text-center p-4 bg-success-light/20 rounded-lg">
-              <p className="text-2xl font-bold text-success">4</p>
-              <p className="text-sm text-muted-foreground">Clientes Activos</p>
-            </div>
-            <div className="text-center p-4 bg-warning-light/20 rounded-lg">
-              <p className="text-2xl font-bold text-warning">1</p>
-              <p className="text-sm text-muted-foreground">Clientes Morosos</p>
-            </div>
-            <div className="text-center p-4 bg-primary/10 rounded-lg">
-              <p className="text-2xl font-bold text-primary">$1,995,000</p>
-              <p className="text-sm text-muted-foreground">Deuda Total</p>
-            </div>
-            <div className="text-center p-4 bg-secondary/10 rounded-lg">
-              <p className="text-2xl font-bold text-secondary">9</p>
-              <p className="text-sm text-muted-foreground">Préstamos Activos</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <ClienteEstadisticas 
+        estadisticas={estadisticas} 
+        loading={loading}
+      />
+
+      {/* Formulario de Cliente */}
+      <FormularioCliente
+        open={showFormulario}
+        onOpenChange={setShowFormulario}
+        onSubmit={handleSubmitCliente}
+        loading={loading}
+      />
     </div>
   )
 }
