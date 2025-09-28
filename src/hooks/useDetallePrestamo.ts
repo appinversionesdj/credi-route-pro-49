@@ -145,20 +145,14 @@ export const useDetallePrestamo = (prestamoId: string) => {
         fecha_creacion: prestamo.fecha_creacion,
         cliente: prestamo.deudores,
         ruta: prestamo.rutas,
-        cronograma: (cronograma || []).map(c => ({
-          ...c,
-          estado: c.estado as 'pendiente' | 'pagado' | 'vencido'
-        })),
+        cronograma: cronograma || [],
         estadisticas: {
           cuotas_pagadas: cuotasPagadas,
           cuotas_totales: cuotasTotales,
           cuotas_pendientes: cuotasPendientes,
           saldo_pendiente: saldoPendiente,
           monto_pagado: montoPagado,
-          proxima_cuota: proximaCuota ? {
-            ...proximaCuota,
-            estado: proximaCuota.estado as 'pendiente' | 'pagado' | 'vencido'
-          } : undefined,
+          proxima_cuota: proximaCuota,
           cuotas_vencidas: cuotasVencidas
         }
       }
