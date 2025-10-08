@@ -29,15 +29,24 @@ export function usePrestamos(filtros?: PrestamoFiltros) {
         throw new Error("No se pudo conectar a Supabase")
       }
 
-      // Consulta simplificada para evitar problemas con RLS en joins
+      // Consulta optimizada con JOIN directo a deudores
       console.log("📊 Obteniendo préstamos...")
       let query = supabase
         .from("prestamos")
-        .select("*")
+        .select(`
+          *,
+          deudores!prestamos_deudor_id_fkey (
+            id,
+            nombre,
+            apellido,
+            cedula,
+            telefono,
+            direccion
+          )
+        `)
         .neq("estado", "E") // Excluir préstamos eliminados (inactivados)
 
       // Aplicar filtros básicos
-
       if (filtros?.estado) {
         query = query.eq("estado", filtros.estado)
       }
@@ -63,62 +72,47 @@ export function usePrestamos(filtros?: PrestamoFiltros) {
 
       console.log("✅ Préstamos obtenidos:", data?.length || 0)
 
-      // Obtener información de clientes y rutas por separado
-      const prestamoIds = (data || []).map((p: any) => p.id)
-      const deudorIds = [...new Set((data || []).map((p: any) => p.deudor_id))]
-      const rutaIds = [...new Set((data || []).map((p: any) => p.ruta_id))]
-
-      // Obtener clientes
-      const { data: clientesData } = await supabase
-        .from("deudores")
-        .select("id, nombre, apellido, cedula, telefono, direccion")
-        .in("id", deudorIds)
-
-      // Obtener rutas
-      const { data: rutasData } = await supabase
-        .from("rutas")
-        .select("id, nombre_ruta")
-        .in("id", rutaIds)
-
-      // Obtener cronograma de pagos
-      const { data: cronogramaData } = await supabase
-        .from("cronograma_pagos")
-        .select("*")
-        .in("prestamo_id", prestamoIds)
-
-      // Crear mapas para acceso rápido
-      const clientesMap = new Map(clientesData?.map(c => [c.id, c]) || [])
-      const rutasMap = new Map(rutasData?.map(r => [r.id, r]) || [])
-      const cronogramaMap = new Map()
-      
-      cronogramaData?.forEach(c => {
-        if (!cronogramaMap.has(c.prestamo_id)) {
-          cronogramaMap.set(c.prestamo_id, [])
-        }
-        cronogramaMap.get(c.prestamo_id).push(c)
-      })
-
-      // Procesar datos para agregar información calculada
+      // Procesar datos usando los campos directos de la tabla prestamos
       let prestamosExtendidos: PrestamoExtendido[] = (data || []).map((prestamo: any) => {
-        const cronograma = cronogramaMap.get(prestamo.id) || []
-        const cuotasPagadas = cronograma.filter((c: any) => c.estado === "pagado" || c.valor_pagado > 0).length
+        const cuotasPagadas = prestamo.cuotas_pagadas || 0
         const cuotasTotales = prestamo.numero_cuotas
-        // Calcular saldo pendiente: monto_total - valor_pagado acumulado
-        const valorPagadoTotal = cronograma.reduce((sum: number, c: any) => sum + (c.valor_pagado || 0), 0)
-        const saldoPendiente = (prestamo.monto_total || 0) - valorPagadoTotal
+        const saldoPendiente = prestamo.saldo_pendiente || 0
         
-        // Calcular próxima fecha de pago
-        const proximaCuota = cronograma
-          .filter((c: any) => !c.fecha_pago && new Date(c.fecha_vencimiento) >= new Date())
-          .sort((a: any, b: any) => new Date(a.fecha_vencimiento).getTime() - new Date(b.fecha_vencimiento).getTime())[0]
+        // Calcular próxima fecha de pago basado en la periodicidad y fecha del último pago
+        let proximaFecha = null
+        if (cuotasPagadas < cuotasTotales) {
+          // Si no ha pagado ninguna cuota, la próxima es la primera
+          if (cuotasPagadas === 0) {
+            proximaFecha = prestamo.fecha_primer_pago
+          } else {
+            // Calcular la próxima fecha según la periodicidad
+            const fechaBase = prestamo.fecha_ultimo_pago || prestamo.fecha_primer_pago
+            const fecha = new Date(fechaBase)
+            
+            // Agregar el período correspondiente
+            switch (prestamo.periodicidad) {
+              case 'diario':
+                fecha.setDate(fecha.getDate() + 1)
+                break
+              case 'semanal':
+                fecha.setDate(fecha.getDate() + 7)
+                break
+              case 'quincenal':
+                fecha.setDate(fecha.getDate() + 15)
+                break
+              case 'mensual':
+                fecha.setMonth(fecha.getMonth() + 1)
+                break
+            }
+            proximaFecha = fecha.toISOString().split('T')[0]
+          }
+        }
         
-        const proximaFecha = proximaCuota?.fecha_vencimiento || null
         const progreso = cuotasTotales > 0 ? (cuotasPagadas / cuotasTotales) * 100 : 0
 
         return {
           ...prestamo,
-          cliente: clientesMap.get(prestamo.deudor_id),
-          ruta: rutasMap.get(prestamo.ruta_id),
+          cliente: prestamo.deudores,
           cuotasPagadas,
           cuotasTotales,
           saldoPendiente,
@@ -252,14 +246,14 @@ export function usePrestamos(filtros?: PrestamoFiltros) {
     try {
       setLoading(true)
       
-      // Verificar si tiene pagos registrados
-      const { data: pagos } = await supabase
-        .from("cronograma_pagos")
-        .select("id")
-        .eq("prestamo_id", id)
-        .not("valor_pagado", "is", null)
+      // Verificar si tiene pagos registrados usando el campo cuotas_pagadas
+      const { data: prestamo } = await supabase
+        .from("prestamos")
+        .select("cuotas_pagadas")
+        .eq("id", id)
+        .single()
 
-      if (pagos && pagos.length > 0) {
+      if (prestamo && (prestamo.cuotas_pagadas || 0) > 0) {
         toast({
           title: "No se puede eliminar",
           description: "El préstamo tiene pagos registrados",
@@ -336,57 +330,34 @@ export function usePrestamos(filtros?: PrestamoFiltros) {
     try {
       const { data: prestamosData } = await supabase
         .from("prestamos")
-        .select(`
-          estado,
-          monto_principal,
-          monto_total,
-          valor_cuota,
-          cronograma_pagos!cronograma_pagos_prestamo_id_fkey (
-            saldo_pendiente,
-            fecha_vencimiento,
-            valor_pagado
-          )
-        `)
-        .neq("estado", "E") // Excluir préstamos inactivados
+        .select("estado, monto_principal, monto_total, valor_cuota, saldo_pendiente, cuotas_pagadas, numero_cuotas")
+        .neq("estado", "E") as any // Excluir préstamos inactivados
 
       if (!prestamosData) return null
 
       const totalPrestamos = prestamosData.length
-      const prestamosActivos = prestamosData.filter(p => p.estado === "activo").length
-      const prestamosVencidos = prestamosData.filter(p => p.estado === "vencido").length
-      const prestamosPagados = prestamosData.filter(p => p.estado === "pagado").length
+      const prestamosActivos = prestamosData.filter((p: any) => p.estado === "activo").length
+      const prestamosVencidos = prestamosData.filter((p: any) => p.estado === "vencido").length
+      const prestamosPagados = prestamosData.filter((p: any) => p.estado === "pagado").length
       
       let carteraTotal = 0
       let saldoPendiente = 0
-      let montoPorVencer = 0
       let totalCuotas = 0
       let cuotasConValor = 0
 
       prestamosData.forEach((prestamo: any) => {
-        const cronograma = prestamo.cronograma_pagos || []
-        // Calcular saldo pendiente del préstamo: monto_total - valor_pagado acumulado
-        const valorPagadoTotal = cronograma.reduce((sum: number, c: any) => sum + (c.valor_pagado || 0), 0)
-        const saldoPrestamo = (prestamo.monto_total || 0) - valorPagadoTotal
+        // Usar el campo saldo_pendiente directo de la tabla
+        const saldoPrestamo = prestamo.saldo_pendiente || 0
         
         // La cartera total es la suma de los saldos pendientes
         carteraTotal += saldoPrestamo
         saldoPendiente += saldoPrestamo
         
-        cronograma.forEach((cuota: any) => {
-          // Calcular monto por vencer (próximos 30 días) - cuotas pendientes
-          const fechaVencimiento = new Date(cuota.fecha_vencimiento)
-          const hoy = new Date()
-          const diasDiferencia = Math.ceil((fechaVencimiento.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
-          
-          if (diasDiferencia <= 30 && diasDiferencia >= 0 && cuota.estado !== 'pagado') {
-            montoPorVencer += (cuota.valor_cuota || 0) - (cuota.valor_pagado || 0)
-          }
-          
-          if (prestamo.valor_cuota) {
-            totalCuotas += prestamo.valor_cuota
-            cuotasConValor++
-          }
-        })
+        // Calcular promedio de cuota
+        if (prestamo.valor_cuota) {
+          totalCuotas += prestamo.valor_cuota
+          cuotasConValor++
+        }
       })
 
       const promedioCuota = cuotasConValor > 0 ? totalCuotas / cuotasConValor : 0
@@ -398,7 +369,7 @@ export function usePrestamos(filtros?: PrestamoFiltros) {
         prestamosPagados,
         carteraTotal,
         saldoPendiente,
-        montoPorVencer,
+        montoPorVencer: 0, // Ya no calculamos esto
         promedioCuota
       }
     } catch (err) {
@@ -448,13 +419,6 @@ export function usePrestamo(id: string) {
               cedula,
               telefono,
               direccion
-            ),
-            rutas!prestamos_ruta_id_fkey (
-              id,
-              nombre_ruta
-            ),
-            cronograma_pagos!cronograma_pagos_prestamo_id_fkey (
-              *
             )
           `)
           .eq("id", id)
@@ -462,23 +426,43 @@ export function usePrestamo(id: string) {
 
         if (fetchError) throw fetchError
 
-        // Procesar datos
-        const cronograma = data.cronograma_pagos || []
-        const cuotasPagadas = cronograma.filter((c: any) => c.estado === "pagado" || c.valor_pagado > 0).length
-        const cuotasTotales = data.numero_cuotas
-        // Calcular saldo pendiente: monto_total - valor_pagado acumulado
-        const valorPagadoTotal = cronograma.reduce((sum: number, c: any) => sum + (c.valor_pagado || 0), 0)
-        const saldoPendiente = (prestamo.monto_total || 0) - valorPagadoTotal
+        // Procesar datos usando campos directos de la tabla
+        const prestamoData = data as any
+        const cuotasPagadas = prestamoData.cuotas_pagadas || 0
+        const cuotasTotales = prestamoData.numero_cuotas
+        const saldoPendiente = prestamoData.saldo_pendiente || 0
         
-        const proximaCuota = cronograma
-          .filter((c: any) => !c.fecha_pago && new Date(c.fecha_vencimiento) >= new Date())
-          .sort((a: any, b: any) => new Date(a.fecha_vencimiento).getTime() - new Date(b.fecha_vencimiento).getTime())[0]
+        // Calcular próxima fecha de pago
+        let proximaFecha = null
+        if (cuotasPagadas < cuotasTotales) {
+          if (cuotasPagadas === 0) {
+            proximaFecha = prestamoData.fecha_primer_pago
+          } else {
+            const fechaBase = prestamoData.fecha_ultimo_pago || prestamoData.fecha_primer_pago
+            const fecha = new Date(fechaBase)
+            
+            switch (prestamoData.periodicidad) {
+              case 'diario':
+                fecha.setDate(fecha.getDate() + 1)
+                break
+              case 'semanal':
+                fecha.setDate(fecha.getDate() + 7)
+                break
+              case 'quincenal':
+                fecha.setDate(fecha.getDate() + 15)
+                break
+              case 'mensual':
+                fecha.setMonth(fecha.getMonth() + 1)
+                break
+            }
+            proximaFecha = fecha.toISOString().split('T')[0]
+          }
+        }
         
-        const proximaFecha = proximaCuota?.fecha_vencimiento || null
         const progreso = cuotasTotales > 0 ? (cuotasPagadas / cuotasTotales) * 100 : 0
 
         const prestamoExtendido: PrestamoExtendido = {
-          ...data,
+          ...prestamoData,
           cuotasPagadas,
           cuotasTotales,
           saldoPendiente,

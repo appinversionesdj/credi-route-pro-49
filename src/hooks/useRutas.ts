@@ -143,23 +143,12 @@ export function useRutas(filtros?: RutaFiltros) {
         .eq("id", rutaId)
         .single() as { data: { inversion_ruta: number } | null }
 
-      // Obtener préstamos de la ruta
+      // Obtener préstamos de la ruta con campos necesarios
       const { data: prestamosData } = await supabase
         .from("prestamos")
-        .select(`
-          estado,
-          monto_principal,
-          monto_total,
-          valor_cuota,
-          valor_seguro,
-          cronograma_pagos!cronograma_pagos_prestamo_id_fkey (
-            saldo_pendiente,
-            fecha_vencimiento,
-            valor_pagado
-          )
-        `)
+        .select("estado, monto_principal, monto_total, valor_cuota, valor_seguro, saldo_pendiente, cuotas_pagadas, numero_cuotas")
         .eq("ruta_id", rutaId)
-        .neq("estado", "E") // Excluir préstamos eliminados
+        .neq("estado", "E") as any // Excluir préstamos eliminados
 
       if (!prestamosData) {
         return {
@@ -181,13 +170,12 @@ export function useRutas(filtros?: RutaFiltros) {
       }
 
       const totalPrestamos = prestamosData.length
-      const prestamosActivos = prestamosData.filter(p => p.estado === "activo").length
-      const prestamosVencidos = prestamosData.filter(p => p.estado === "vencido").length
-      const prestamosPagados = prestamosData.filter(p => p.estado === "pagado").length
+      const prestamosActivos = prestamosData.filter((p: any) => p.estado === "activo").length
+      const prestamosVencidos = prestamosData.filter((p: any) => p.estado === "vencido").length
+      const prestamosPagados = prestamosData.filter((p: any) => p.estado === "pagado").length
       
       let carteraTotal = 0
       let saldoPendiente = 0
-      let montoPorVencer = 0
       let totalCuotas = 0
       let cuotasConValor = 0
       let totalCobrosRealizados = 0
@@ -196,41 +184,28 @@ export function useRutas(filtros?: RutaFiltros) {
       // Variables para cálculo de caja
       let totalPrestamosRealizados = 0 // Suma de monto_principal
       let totalSeguros = 0 // Suma de valor_seguro
-      let totalPagosRecibidos = 0 // Suma de valor_pagado del cronograma
-      let segurosRecogidos = 0 // Total de seguros recogidos (valor_seguro de todos los préstamos)
+      let segurosRecogidos = 0 // Total de seguros recogidos
 
       prestamosData.forEach((prestamo: any) => {
-        const cronograma = prestamo.cronograma_pagos || []
-        // Calcular saldo pendiente del préstamo: monto_total - valor_pagado acumulado
-        const valorPagadoTotal = cronograma.reduce((sum: number, c: any) => sum + (c.valor_pagado || 0), 0)
-        const saldoPrestamo = (prestamo.monto_total || 0) - valorPagadoTotal
+        // Usar campos directos de la tabla prestamos
+        const saldoPrestamo = prestamo.saldo_pendiente || 0
+        const pagosRealizados = (prestamo.monto_total || 0) - saldoPrestamo
         
         carteraTotal += saldoPrestamo
         saldoPendiente += saldoPrestamo
-        totalCobrosRealizados += valorPagadoTotal
+        totalCobrosRealizados += pagosRealizados
         totalCobrosProgramados += prestamo.monto_total || 0
         
         // Acumular para cálculo de caja
         totalPrestamosRealizados += prestamo.monto_principal || 0
         totalSeguros += prestamo.valor_seguro || 0
-        totalPagosRecibidos += valorPagadoTotal
         segurosRecogidos += prestamo.valor_seguro || 0
         
-        cronograma.forEach((cuota: any) => {
-          // Calcular monto por vencer (próximos 30 días) - cuotas pendientes
-          const fechaVencimiento = new Date(cuota.fecha_vencimiento)
-          const hoy = new Date()
-          const diasDiferencia = Math.ceil((fechaVencimiento.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
-          
-          if (diasDiferencia <= 30 && diasDiferencia >= 0 && cuota.estado !== 'pagado') {
-            montoPorVencer += (cuota.valor_cuota || 0) - (cuota.valor_pagado || 0)
-          }
-          
-          if (prestamo.valor_cuota) {
-            totalCuotas += prestamo.valor_cuota
-            cuotasConValor++
-          }
-        })
+        // Promedio de cuota
+        if (prestamo.valor_cuota) {
+          totalCuotas += prestamo.valor_cuota
+          cuotasConValor++
+        }
       })
 
       const promedioCuota = cuotasConValor > 0 ? totalCuotas / cuotasConValor : 0
@@ -248,9 +223,9 @@ export function useRutas(filtros?: RutaFiltros) {
       const clientesActivos = clientesData?.filter(p => p.estado === "activo").length || 0
       const clientesMorosos = clientesData?.filter(p => p.estado === "vencido").length || 0
 
-      // Calcular caja según la fórmula: +inversion_ruta - prestamos_realizados + seguros + pagos_recibidos
+      // Calcular caja según la fórmula: inversion_ruta - monto_principal + seguros + pagosRealizados
       const inversionRuta = rutaData?.inversion_ruta || 0
-      const caja = inversionRuta - totalPrestamosRealizados + totalSeguros + totalPagosRecibidos
+      const caja = inversionRuta - totalPrestamosRealizados + totalSeguros + totalCobrosRealizados
 
       return {
         totalPrestamos,
@@ -259,7 +234,7 @@ export function useRutas(filtros?: RutaFiltros) {
         prestamosPagados,
         carteraTotal,
         saldoPendiente,
-        montoPorVencer,
+        montoPorVencer: 0, // Ya no se calcula
         promedioCuota,
         rentabilidad,
         eficienciaCobro,
@@ -535,20 +510,9 @@ async function obtenerEstadisticasRuta(rutaId: string): Promise<RutaEstadisticas
 
     const { data: prestamosData } = await supabase
       .from("prestamos")
-      .select(`
-        estado,
-        monto_principal,
-        monto_total,
-        valor_cuota,
-        valor_seguro,
-        cronograma_pagos!cronograma_pagos_prestamo_id_fkey (
-          saldo_pendiente,
-          fecha_vencimiento,
-          valor_pagado
-        )
-      `)
+      .select("estado, monto_principal, monto_total, valor_cuota, valor_seguro, saldo_pendiente, cuotas_pagadas, numero_cuotas")
       .eq("ruta_id", rutaId)
-      .neq("estado", "E")
+      .neq("estado", "E") as any
 
     if (!prestamosData) {
       return {
@@ -570,13 +534,12 @@ async function obtenerEstadisticasRuta(rutaId: string): Promise<RutaEstadisticas
     }
 
     const totalPrestamos = prestamosData.length
-    const prestamosActivos = prestamosData.filter(p => p.estado === "activo").length
-    const prestamosVencidos = prestamosData.filter(p => p.estado === "vencido").length
-    const prestamosPagados = prestamosData.filter(p => p.estado === "pagado").length
+    const prestamosActivos = prestamosData.filter((p: any) => p.estado === "activo").length
+    const prestamosVencidos = prestamosData.filter((p: any) => p.estado === "vencido").length
+    const prestamosPagados = prestamosData.filter((p: any) => p.estado === "pagado").length
     
     let carteraTotal = 0
     let saldoPendiente = 0
-    let montoPorVencer = 0
     let totalCuotas = 0
     let cuotasConValor = 0
     let totalCobrosRealizados = 0
@@ -585,39 +548,28 @@ async function obtenerEstadisticasRuta(rutaId: string): Promise<RutaEstadisticas
     // Variables para cálculo de caja
     let totalPrestamosRealizados = 0 // Suma de monto_principal
     let totalSeguros = 0 // Suma de valor_seguro
-    let totalPagosRecibidos = 0 // Suma de valor_pagado del cronograma
-    let segurosRecogidos = 0 // Total de seguros recogidos (valor_seguro de todos los préstamos)
+    let segurosRecogidos = 0 // Total de seguros recogidos
 
     prestamosData.forEach((prestamo: any) => {
-      const cronograma = prestamo.cronograma_pagos || []
-      const valorPagadoTotal = cronograma.reduce((sum: number, c: any) => sum + (c.valor_pagado || 0), 0)
-      const saldoPrestamo = (prestamo.monto_total || 0) - valorPagadoTotal
+      // Usar campos directos de la tabla prestamos
+      const saldoPrestamo = prestamo.saldo_pendiente || 0
+      const pagosRealizados = (prestamo.monto_total || 0) - saldoPrestamo
       
       carteraTotal += saldoPrestamo
       saldoPendiente += saldoPrestamo
-      totalCobrosRealizados += valorPagadoTotal
+      totalCobrosRealizados += pagosRealizados
       totalCobrosProgramados += prestamo.monto_total || 0
       
       // Acumular para cálculo de caja
       totalPrestamosRealizados += prestamo.monto_principal || 0
       totalSeguros += prestamo.valor_seguro || 0
-      totalPagosRecibidos += valorPagadoTotal
       segurosRecogidos += prestamo.valor_seguro || 0
       
-      cronograma.forEach((cuota: any) => {
-        const fechaVencimiento = new Date(cuota.fecha_vencimiento)
-        const hoy = new Date()
-        const diasDiferencia = Math.ceil((fechaVencimiento.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
-        
-        if (diasDiferencia <= 30 && diasDiferencia >= 0 && cuota.estado !== 'pagado') {
-          montoPorVencer += (cuota.valor_cuota || 0) - (cuota.valor_pagado || 0)
-        }
-        
-        if (prestamo.valor_cuota) {
-          totalCuotas += prestamo.valor_cuota
-          cuotasConValor++
-        }
-      })
+      // Promedio de cuota
+      if (prestamo.valor_cuota) {
+        totalCuotas += prestamo.valor_cuota
+        cuotasConValor++
+      }
     })
 
     const promedioCuota = cuotasConValor > 0 ? totalCuotas / cuotasConValor : 0
@@ -633,9 +585,9 @@ async function obtenerEstadisticasRuta(rutaId: string): Promise<RutaEstadisticas
     const clientesActivos = clientesData?.filter(p => p.estado === "activo").length || 0
     const clientesMorosos = clientesData?.filter(p => p.estado === "vencido").length || 0
 
-    // Calcular caja según la fórmula: +inversion_ruta - prestamos_realizados + seguros + pagos_recibidos
+    // Calcular caja según la fórmula: inversion_ruta - monto_principal + seguros + pagosRealizados
     const inversionRuta = rutaData?.inversion_ruta || 0
-    const caja = inversionRuta - totalPrestamosRealizados + totalSeguros + totalPagosRecibidos
+    const caja = inversionRuta - totalPrestamosRealizados + totalSeguros + totalCobrosRealizados
 
     return {
       totalPrestamos,
@@ -644,7 +596,7 @@ async function obtenerEstadisticasRuta(rutaId: string): Promise<RutaEstadisticas
       prestamosPagados,
       carteraTotal,
       saldoPendiente,
-      montoPorVencer,
+      montoPorVencer: 0, // Ya no se calcula
       promedioCuota,
       rentabilidad,
       eficienciaCobro,

@@ -10,9 +10,6 @@ import {
 import { 
   MoreHorizontal,
   User,
-  MapPin,
-  Calendar,
-  DollarSign,
   Eye,
   Archive
 } from "lucide-react"
@@ -109,16 +106,8 @@ export default function PrestamoCard({ prestamo, onInactivar, onView }: Prestamo
           </div>
         </div>
 
-        {/* Ruta */}
-        <div className="col-span-1 text-center">
-          <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
-            <MapPin className="w-3 h-3" />
-            <span className="truncate">{prestamo.ruta?.nombre_ruta || 'N/A'}</span>
-          </div>
-        </div>
-
         {/* Próxima Fecha */}
-        <div className="col-span-1 text-center">
+        <div className="col-span-2 text-center">
           <div className="text-xs text-muted-foreground">
             {prestamo.proximaFecha ? 
               new Date(prestamo.proximaFecha).toLocaleDateString('es-CO') : 

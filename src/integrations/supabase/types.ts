@@ -202,11 +202,13 @@ export type Database = {
       cronograma_pagos: {
         Row: {
           estado: string | null
+          fecha_actualizacion: string | null
           fecha_creacion: string
           fecha_pago: string | null
           fecha_vencimiento: string
           id: string
           numero_cuota: number
+          observaciones_pago: string | null
           prestamo_id: string
           saldo_pendiente: number
           valor_capital: number
@@ -216,11 +218,13 @@ export type Database = {
         }
         Insert: {
           estado?: string | null
+          fecha_actualizacion?: string | null
           fecha_creacion?: string
           fecha_pago?: string | null
           fecha_vencimiento: string
           id?: string
           numero_cuota: number
+          observaciones_pago?: string | null
           prestamo_id: string
           saldo_pendiente: number
           valor_capital: number
@@ -230,11 +234,13 @@ export type Database = {
         }
         Update: {
           estado?: string | null
+          fecha_actualizacion?: string | null
           fecha_creacion?: string
           fecha_pago?: string | null
           fecha_vencimiento?: string
           id?: string
           numero_cuota?: number
+          observaciones_pago?: string | null
           prestamo_id?: string
           saldo_pendiente?: number
           valor_capital?: number
@@ -256,6 +262,7 @@ export type Database = {
         Row: {
           apellido: string
           cedula: number
+          creado_por: string | null
           direccion: string | null
           empresa_id: string | null
           estado: string | null
@@ -272,6 +279,7 @@ export type Database = {
         Insert: {
           apellido: string
           cedula: number
+          creado_por?: string | null
           direccion?: string | null
           empresa_id?: string | null
           estado?: string | null
@@ -288,6 +296,7 @@ export type Database = {
         Update: {
           apellido?: string
           cedula?: number
+          creado_por?: string | null
           direccion?: string | null
           empresa_id?: string | null
           estado?: string | null
@@ -302,6 +311,13 @@ export type Database = {
           telefono?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "deudores_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["user_id"]
+          },
           {
             foreignKeyName: "deudores_empresa_id_fkey"
             columns: ["empresa_id"]
@@ -356,54 +372,50 @@ export type Database = {
       gastos_diarios: {
         Row: {
           aprobado_por: string | null
-          base_diaria_id: string
           comprobante_url: string | null
           descripcion: string
           estado_aprobacion: string | null
           fecha_creacion: string | null
+          fecha_gasto: string | null
           hora_gasto: string | null
           id: string
           monto: number
           observaciones: string | null
           tipo_gasto_id: string
           ubicacion: string | null
+          user_id: string | null
         }
         Insert: {
           aprobado_por?: string | null
-          base_diaria_id: string
           comprobante_url?: string | null
           descripcion: string
           estado_aprobacion?: string | null
           fecha_creacion?: string | null
+          fecha_gasto?: string | null
           hora_gasto?: string | null
           id?: string
           monto: number
           observaciones?: string | null
           tipo_gasto_id: string
           ubicacion?: string | null
+          user_id?: string | null
         }
         Update: {
           aprobado_por?: string | null
-          base_diaria_id?: string
           comprobante_url?: string | null
           descripcion?: string
           estado_aprobacion?: string | null
           fecha_creacion?: string | null
+          fecha_gasto?: string | null
           hora_gasto?: string | null
           id?: string
           monto?: number
           observaciones?: string | null
           tipo_gasto_id?: string
           ubicacion?: string | null
+          user_id?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "gastos_diarios_base_diaria_id_fkey"
-            columns: ["base_diaria_id"]
-            isOneToOne: false
-            referencedRelation: "base_diaria_cobradores"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "gastos_diarios_tipo_gasto_id_fkey"
             columns: ["tipo_gasto_id"]
@@ -411,59 +423,137 @@ export type Database = {
             referencedRelation: "tipos_gastos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "gastos_diarios_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      pagos: {
+        Row: {
+          creado_por: string | null
+          created_at: string | null
+          empresa_id: string | null
+          fecha_creacion: string | null
+          fecha_pago: string
+          id: string
+          metodo_pago: string
+          monto: number
+          observaciones: string | null
+          prestamo_id: string
+          recibo_numero: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          creado_por?: string | null
+          created_at?: string | null
+          empresa_id?: string | null
+          fecha_creacion?: string | null
+          fecha_pago: string
+          id?: string
+          metodo_pago: string
+          monto: number
+          observaciones?: string | null
+          prestamo_id: string
+          recibo_numero?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          creado_por?: string | null
+          created_at?: string | null
+          empresa_id?: string | null
+          fecha_creacion?: string | null
+          fecha_pago?: string
+          id?: string
+          metodo_pago?: string
+          monto?: number
+          observaciones?: string | null
+          prestamo_id?: string
+          recibo_numero?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagos_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagos_prestamo_id_fkey"
+            columns: ["prestamo_id"]
+            isOneToOne: false
+            referencedRelation: "prestamos"
+            referencedColumns: ["id"]
+          },
         ]
       }
       pagos_recibidos: {
         Row: {
-          base_diaria_id: string
-          cronograma_pago_id: string
           fecha_pago: string | null
           foto_comprobante_url: string | null
+          hora_pago: string | null
           id: string
           monto_pagado: number
           observaciones: string | null
+          prestamo_id: string | null
+          registrado_por: string | null
           tipo_pago: string | null
         }
         Insert: {
-          base_diaria_id: string
-          cronograma_pago_id: string
           fecha_pago?: string | null
           foto_comprobante_url?: string | null
+          hora_pago?: string | null
           id?: string
           monto_pagado: number
           observaciones?: string | null
+          prestamo_id?: string | null
+          registrado_por?: string | null
           tipo_pago?: string | null
         }
         Update: {
-          base_diaria_id?: string
-          cronograma_pago_id?: string
           fecha_pago?: string | null
           foto_comprobante_url?: string | null
+          hora_pago?: string | null
           id?: string
           monto_pagado?: number
           observaciones?: string | null
+          prestamo_id?: string | null
+          registrado_por?: string | null
           tipo_pago?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "pagos_recibidos_base_diaria_id_fkey"
-            columns: ["base_diaria_id"]
+            foreignKeyName: "pagos_recibidos_prestamo_id_fkey"
+            columns: ["prestamo_id"]
             isOneToOne: false
-            referencedRelation: "base_diaria_cobradores"
+            referencedRelation: "prestamos"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "pagos_recibidos_cronograma_pago_id_fkey"
-            columns: ["cronograma_pago_id"]
+            foreignKeyName: "pagos_recibidos_registrado_por_fkey"
+            columns: ["registrado_por"]
             isOneToOne: false
-            referencedRelation: "cronograma_pagos"
-            referencedColumns: ["id"]
+            referencedRelation: "usuarios"
+            referencedColumns: ["user_id"]
           },
         ]
       }
       prestamos: {
         Row: {
           creado_por: string | null
+          cuotas_pagadas: number | null
           deudor_id: string
           estado: string | null
           fecha_actualizacion: string | null
@@ -480,12 +570,14 @@ export type Database = {
           observaciones: string | null
           periodicidad: string
           ruta_id: string
+          saldo_pendiente: number
           tasa_interes: number
           valor_cuota: number
           valor_seguro: number | null
         }
         Insert: {
           creado_por?: string | null
+          cuotas_pagadas?: number | null
           deudor_id: string
           estado?: string | null
           fecha_actualizacion?: string | null
@@ -502,12 +594,14 @@ export type Database = {
           observaciones?: string | null
           periodicidad: string
           ruta_id: string
+          saldo_pendiente?: number
           tasa_interes: number
           valor_cuota: number
           valor_seguro?: number | null
         }
         Update: {
           creado_por?: string | null
+          cuotas_pagadas?: number | null
           deudor_id?: string
           estado?: string | null
           fecha_actualizacion?: string | null
@@ -524,11 +618,19 @@ export type Database = {
           observaciones?: string | null
           periodicidad?: string
           ruta_id?: string
+          saldo_pendiente?: number
           tasa_interes?: number
           valor_cuota?: number
           valor_seguro?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "prestamos_creado_por_fkey1"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["user_id"]
+          },
           {
             foreignKeyName: "prestamos_deudor_id_fkey"
             columns: ["deudor_id"]
@@ -595,6 +697,7 @@ export type Database = {
           fecha_actualizacion: string | null
           fecha_creacion: string | null
           id: string
+          inversion_ruta: number | null
           nombre_ruta: string
           usuario_id: string | null
           zona_geografica: string | null
@@ -606,6 +709,7 @@ export type Database = {
           fecha_actualizacion?: string | null
           fecha_creacion?: string | null
           id?: string
+          inversion_ruta?: number | null
           nombre_ruta: string
           usuario_id?: string | null
           zona_geografica?: string | null
@@ -617,6 +721,7 @@ export type Database = {
           fecha_actualizacion?: string | null
           fecha_creacion?: string | null
           id?: string
+          inversion_ruta?: number | null
           nombre_ruta?: string
           usuario_id?: string | null
           zona_geografica?: string | null
@@ -746,9 +851,40 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generar_cronograma_pagos: {
+        Args: {
+          fecha_primer_pago_param: string
+          monto_principal_param: number
+          numero_cuotas_param: number
+          periodicidad_param: string
+          prestamo_id_param: string
+          tasa_interes_param: number
+          valor_seguro_param: number
+        }
+        Returns: undefined
+      }
       generate_loan_number: {
         Args: { empresa_id_param: string }
         Returns: string
+      }
+      get_cobrador_rutas: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          ruta_id: string
+        }[]
+      }
+      get_user_empresa_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_user_profile: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          empresa_id: string
+          estado: string
+          rol: string
+          user_id: string
+        }[]
       }
       get_user_routes: {
         Args: Record<PropertyKey, never>
@@ -758,6 +894,10 @@ export type Database = {
           id: string
           nombre_ruta: string
         }[]
+      }
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
       }
       test_rls_as_user: {
         Args: { test_user_id: string }

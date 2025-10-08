@@ -15,10 +15,6 @@ export interface PrestamoExtendido extends Prestamo {
     telefono?: string
     direccion?: string
   }
-  ruta?: {
-    id: string
-    nombre_ruta: string
-  }
   cuotasPagadas?: number
   cuotasTotales?: number
   saldoPendiente?: number

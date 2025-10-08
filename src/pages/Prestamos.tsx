@@ -186,8 +186,7 @@ export default function Prestamos() {
               <div className="col-span-1 text-right pr-2">Saldo</div>
               <div className="col-span-1 text-right pr-2">Cuota</div>
               <div className="col-span-2 text-center">Progreso</div>
-              <div className="col-span-1 text-center">Ruta</div>
-              <div className="col-span-1 text-center">Próxima</div>
+              <div className="col-span-2 text-center">Próxima</div>
               <div className="col-span-1 text-center">Estado</div>
               <div className="col-span-1 text-center">Acciones</div>
             </div>
