@@ -43,6 +43,8 @@ export interface RutaEstadisticas {
   clientesMorosos: number
   caja: number // Dinero disponible en la ruta
   segurosRecogidos: number // Total de seguros recogidos
+  totalPrestado: number // Suma de monto_principal
+  totalCobrado: number // Suma de (monto_total - saldo_pendiente)
 }
 
 export interface RutaInsert {

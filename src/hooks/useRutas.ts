@@ -241,7 +241,9 @@ export function useRutas(filtros?: RutaFiltros) {
         clientesActivos,
         clientesMorosos,
         caja,
-        segurosRecogidos
+        segurosRecogidos,
+        totalPrestado: totalPrestamosRealizados,
+        totalCobrado: totalCobrosRealizados
       }
     } catch (err) {
       console.error("Error al obtener estadísticas de ruta:", err)
@@ -529,7 +531,9 @@ async function obtenerEstadisticasRuta(rutaId: string): Promise<RutaEstadisticas
         clientesActivos: 0,
         clientesMorosos: 0,
         caja: rutaData?.inversion_ruta || 0,
-        segurosRecogidos: 0
+        segurosRecogidos: 0,
+        totalPrestado: 0,
+        totalCobrado: 0
       }
     }
 
@@ -603,7 +607,9 @@ async function obtenerEstadisticasRuta(rutaId: string): Promise<RutaEstadisticas
       clientesActivos,
       clientesMorosos,
       caja,
-      segurosRecogidos
+      segurosRecogidos,
+      totalPrestado: totalPrestamosRealizados,
+      totalCobrado: totalCobrosRealizados
     }
   } catch (err) {
     console.error("Error al obtener estadísticas de ruta:", err)
@@ -621,7 +627,9 @@ async function obtenerEstadisticasRuta(rutaId: string): Promise<RutaEstadisticas
       clientesActivos: 0,
       clientesMorosos: 0,
       caja: 0,
-      segurosRecogidos: 0
+      segurosRecogidos: 0,
+      totalPrestado: 0,
+      totalCobrado: 0
     }
   }
 }
