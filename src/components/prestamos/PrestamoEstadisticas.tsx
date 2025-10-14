@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PrestamoEstadisticas as EstadisticasType } from "@/types/prestamo"
-import { DollarSign, TrendingUp, Clock, Calendar } from "lucide-react"
+import { DollarSign, TrendingUp, AlertCircle, Percent } from "lucide-react"
 
 interface PrestamoEstadisticasProps {
   estadisticas: EstadisticasType | null
@@ -47,7 +47,7 @@ export default function PrestamoEstadisticas({ estadisticas, loading }: Prestamo
       icono: DollarSign,
       color: "bg-blue-100 text-blue-800",
       iconColor: "text-blue-600",
-      descripcion: "Capital prestado"
+      descripcion: "Saldo pendiente"
     },
     {
       titulo: "Activos",
@@ -58,20 +58,32 @@ export default function PrestamoEstadisticas({ estadisticas, loading }: Prestamo
       descripcion: "Préstamos vigentes"
     },
     {
-      titulo: "Vencidos",
+      titulo: "Con Mora",
       valor: estadisticas.prestamosVencidos,
-      icono: Clock,
+      icono: AlertCircle,
       color: "bg-red-100 text-red-800",
       iconColor: "text-red-600",
-      descripcion: "Cuotas vencidas"
+      descripcion: "Préstamos vencidos"
     },
     {
-      titulo: "Por Vencer",
-      valor: `$${estadisticas.montoPorVencer.toLocaleString('es-CO')}`,
-      icono: Calendar,
-      color: "bg-yellow-100 text-yellow-800",
-      iconColor: "text-yellow-600",
-      descripcion: "Próximos 30 días"
+      titulo: "Tasa de Morosidad",
+      valor: `${estadisticas.tasaMorosidad.toFixed(1)}%`,
+      icono: Percent,
+      color: estadisticas.tasaMorosidad > 15 
+        ? "bg-red-100 text-red-800" 
+        : estadisticas.tasaMorosidad > 8
+        ? "bg-yellow-100 text-yellow-800"
+        : "bg-green-100 text-green-800",
+      iconColor: estadisticas.tasaMorosidad > 15 
+        ? "text-red-600" 
+        : estadisticas.tasaMorosidad > 8
+        ? "text-yellow-600"
+        : "text-green-600",
+      descripcion: estadisticas.tasaMorosidad > 15 
+        ? "Nivel crítico" 
+        : estadisticas.tasaMorosidad > 8
+        ? "Nivel moderado"
+        : "Nivel saludable"
     }
   ]
 

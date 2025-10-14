@@ -28,6 +28,15 @@ export interface RutaExtendida extends Ruta {
   }
 }
 
+export interface DatosSemana {
+  semana: string
+  prestado: number
+  cobrado: number
+  gastos: number
+  fechaInicio: string
+  fechaFin: string
+}
+
 export interface RutaEstadisticas {
   totalPrestamos: number
   prestamosActivos: number
@@ -45,6 +54,8 @@ export interface RutaEstadisticas {
   segurosRecogidos: number // Total de seguros recogidos
   totalPrestado: number // Suma de monto_principal
   totalCobrado: number // Suma de (monto_total - saldo_pendiente)
+  totalGastos: number // Suma de gastos diarios de la ruta
+  datosPorSemana: DatosSemana[] // Datos agrupados por semana
 }
 
 export interface RutaInsert {
@@ -52,7 +63,8 @@ export interface RutaInsert {
   descripcion?: string
   zona_geografica?: string
   estado?: 'activa' | 'inactiva' | 'suspendida'
-  usuario_id: string
+  usuario_id?: string
+  inversion_ruta?: number
 }
 
 export interface RutaUpdate {
@@ -60,6 +72,7 @@ export interface RutaUpdate {
   descripcion?: string
   zona_geografica?: string
   estado?: 'activa' | 'inactiva' | 'suspendida'
+  inversion_ruta?: number
 }
 
 export interface RutaFiltros {

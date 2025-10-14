@@ -2,6 +2,22 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../integrations/supabase/client'
 import { useToast } from './use-toast'
 
+export interface PagoRegistrado {
+  id: string
+  prestamo_id: string
+  monto_pagado: number
+  fecha_pago: string
+  hora_pago?: string
+  tipo_pago: string
+  observaciones?: string
+  foto_comprobante_url?: string
+  registrado_por?: string
+  cobrador?: {
+    nombre: string
+    apellido: string
+  }
+}
+
 export interface DetallePrestamo {
   id: string
   numero_prestamo: string
@@ -34,8 +50,8 @@ export interface DetallePrestamo {
     descripcion?: string
     zona_geografica?: string
   }
-  // Cronograma de pagos
-  cronograma: CronogramaPago[]
+  // Pagos registrados
+  pagos: PagoRegistrado[]
   // Estadísticas calculadas
   estadisticas: {
     cuotas_pagadas: number
@@ -43,7 +59,6 @@ export interface DetallePrestamo {
     cuotas_pendientes: number
     saldo_pendiente: number
     monto_pagado: number
-    proxima_cuota?: CronogramaPago
     cuotas_vencidas: number
   }
 }
@@ -100,33 +115,68 @@ export const useDetallePrestamo = (prestamoId: string) => {
 
       if (prestamoError) throw prestamoError
 
-      // Obtener cronograma de pagos
-      const { data: cronograma, error: cronogramaError } = await supabase
-        .from('cronograma_pagos')
-        .select('*')
+      // Obtener pagos registrados del préstamo
+      const { data: pagos, error: pagosError } = await supabase
+        .from('pagos_recibidos')
+        .select(`
+          *,
+          usuarios!pagos_recibidos_registrado_por_fkey (
+            nombre,
+            apellido
+          )
+        `)
         .eq('prestamo_id', prestamoId)
-        .order('numero_cuota')
+        .order('fecha_pago', { ascending: false })
 
-      if (cronogramaError) throw cronogramaError
+      if (pagosError) throw pagosError
 
-      // Calcular estadísticas
-      const cuotasPagadas = cronograma.filter(c => c.estado === 'pagado').length
-      const cuotasTotales = cronograma.length
+      // Calcular estadísticas desde los campos directos del préstamo
+      const cuotasPagadas = prestamo.cuotas_pagadas || 0
+      const cuotasTotales = prestamo.numero_cuotas || 0
       const cuotasPendientes = cuotasTotales - cuotasPagadas
-      const saldoPendiente = cronograma.reduce((sum, c) => 
-        c.estado === 'pendiente' ? sum + c.saldo_pendiente : sum, 0
-      )
-      const montoPagado = cronograma.reduce((sum, c) => 
-        c.estado === 'pagado' ? sum + c.valor_pagado : sum, 0
-      )
+      const saldoPendiente = prestamo.saldo_pendiente || 0
+      const montoPagado = prestamo.monto_total - saldoPendiente
       
-      const proximaCuota = cronograma.find(c => c.estado === 'pendiente')
-      const cuotasVencidas = cronograma.filter(c => {
-        if (c.estado !== 'pendiente') return false
-        const fechaVencimiento = new Date(c.fecha_vencimiento)
-        const hoy = new Date()
-        return fechaVencimiento < hoy
-      }).length
+      // Calcular cuotas vencidas usando la lógica existente
+      const calcularCuotasVencidas = () => {
+        if (!prestamo.fecha_primer_pago || cuotasPagadas >= cuotasTotales) {
+          return 0
+        }
+
+        const fechaHoy = new Date()
+        const fechaInicio = new Date(prestamo.fecha_primer_pago)
+        
+        let diasEntreCuotas = 0
+        switch (prestamo.periodicidad) {
+          case 'diario':
+            diasEntreCuotas = 1
+            break
+          case 'semanal':
+            diasEntreCuotas = 7
+            break
+          case 'quincenal':
+            diasEntreCuotas = 15
+            break
+          case 'mensual':
+            diasEntreCuotas = 30
+            break
+          default:
+            diasEntreCuotas = 7
+        }
+
+        const diasTranscurridos = Math.floor((fechaHoy.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24))
+        
+        if (diasTranscurridos < 0) {
+          return 0
+        }
+
+        const cuotasQueDeberianEstarPagadas = Math.floor(diasTranscurridos / diasEntreCuotas) + 1
+        const cuotasVencidas = Math.max(0, cuotasQueDeberianEstarPagadas - cuotasPagadas)
+        
+        return Math.min(cuotasVencidas, cuotasPendientes)
+      }
+      
+      const cuotasVencidas = calcularCuotasVencidas()
 
       const detalleCompleto: DetallePrestamo = {
         id: prestamo.id,
@@ -145,14 +195,16 @@ export const useDetallePrestamo = (prestamoId: string) => {
         fecha_creacion: prestamo.fecha_creacion,
         cliente: prestamo.deudores,
         ruta: prestamo.rutas,
-        cronograma: cronograma || [],
+        pagos: pagos?.map(p => ({
+          ...p,
+          cobrador: p.usuarios
+        })) || [],
         estadisticas: {
           cuotas_pagadas: cuotasPagadas,
           cuotas_totales: cuotasTotales,
           cuotas_pendientes: cuotasPendientes,
           saldo_pendiente: saldoPendiente,
           monto_pagado: montoPagado,
-          proxima_cuota: proximaCuota,
           cuotas_vencidas: cuotasVencidas
         }
       }

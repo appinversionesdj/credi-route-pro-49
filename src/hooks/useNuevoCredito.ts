@@ -7,11 +7,40 @@ import {
   ClienteExistente 
 } from '@/types/nuevoCredito'
 import { useToast } from '@/hooks/use-toast'
+import { 
+  FechaUtils, 
+  PrestamoCalculadora, 
+  PrestamoValidador,
+  type Periodicidad,
+  type DiaSemana
+} from '@/lib/prestamo-utils'
 
 export function useNuevoCredito() {
   const [loading, setLoading] = useState(false)
   const [rutas, setRutas] = useState<Ruta[]>([])
+  const [clientes, setClientes] = useState<ClienteExistente[]>([])
   const { toast } = useToast()
+
+  // Cargar todos los clientes disponibles
+  const cargarClientes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('deudores')
+        .select('id, nombre, apellido, cedula, telefono, direccion, ocupacion, referencias')
+        .eq('estado', 'activo')
+        .order('nombre')
+
+      if (error) throw error
+      setClientes(data || [])
+    } catch (error) {
+      console.error('Error cargando clientes:', error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los clientes",
+        variant: "destructive"
+      })
+    }
+  }
 
   // Buscar cliente por cédula
   const buscarCliente = async (cedula: string): Promise<ClienteExistente | null> => {
@@ -29,6 +58,23 @@ export function useNuevoCredito() {
       return data as ClienteExistente
     } catch (error) {
       console.error('Error buscando cliente:', error)
+      return null
+    }
+  }
+
+  // Obtener cliente por ID
+  const obtenerClientePorId = async (id: string): Promise<ClienteExistente | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('deudores')
+        .select('*')
+        .eq('id', id)
+        .single()
+
+      if (error) throw error
+      return data as ClienteExistente
+    } catch (error) {
+      console.error('Error obteniendo cliente:', error)
       return null
     }
   }
@@ -119,53 +165,58 @@ export function useNuevoCredito() {
     }
   }
 
-  // Calcular valores del préstamo
+  // Calcular valores del préstamo usando la nueva lógica
   const calcularPrestamo = (prestamoData: any): CalculosPrestamo => {
     const montoPrincipal = Number(prestamoData.monto_principal)
-    const tasaInteres = Number(prestamoData.tasa_interes) / 100
+    const tasaInteres = Number(prestamoData.tasa_interes)
     const valorSeguro = Number(prestamoData.valor_seguro || 0)
     const numeroCuotas = Number(prestamoData.numero_cuotas)
+    const periodicidad = prestamoData.periodicidad as Periodicidad
+    const fechaDesembolso = prestamoData.fecha_desembolso
+    const diaPagoSemanal = prestamoData.dia_pago_semanal as DiaSemana | undefined
     
-    // Calcular interés total (sobre el monto principal)
-    const interesTotal = montoPrincipal * tasaInteres
+    // Usar PrestamoCalculadora para calcular valores financieros
+    const calculos = PrestamoCalculadora.calcular(
+      montoPrincipal,
+      tasaInteres,
+      numeroCuotas,
+      valorSeguro
+    )
     
-    // Calcular monto total a cobrar (principal + interés, SIN sumar el seguro)
-    const montoTotal = montoPrincipal + interesTotal
-    
-    // Calcular valor de cuota
-    const valorCuota = montoTotal / numeroCuotas
-    
-    // Calcular fecha de primer pago según periodicidad
-    const fechaDesembolso = new Date(prestamoData.fecha_desembolso)
-    let fechaPrimerPago = new Date(fechaDesembolso)
-    
-    switch (prestamoData.periodicidad) {
-      case 'diario':
-        fechaPrimerPago.setDate(fechaPrimerPago.getDate() + 1)
-        break
-      case 'semanal':
-        fechaPrimerPago.setDate(fechaPrimerPago.getDate() + 7)
-        break
-      case 'quincenal':
-        fechaPrimerPago.setDate(fechaPrimerPago.getDate() + 15)
-        break
-      case 'mensual':
-        fechaPrimerPago.setMonth(fechaPrimerPago.getMonth() + 1)
-        break
-    }
+    // Calcular fecha del primer pago
+    const fechaPrimerPago = PrestamoCalculadora.calcularFechaPrimerPago(
+      fechaDesembolso,
+      periodicidad,
+      diaPagoSemanal
+    )
 
     return {
       numero_prestamo: '', // Se generará en la base de datos
-      monto_total: montoTotal,
-      valor_cuota: valorCuota,
-      fecha_primer_pago: fechaPrimerPago.toISOString().split('T')[0],
-      interes_total: interesTotal
+      monto_total: calculos.montoTotal,
+      valor_cuota: calculos.valorCuota,
+      fecha_primer_pago: fechaPrimerPago,
+      interes_total: calculos.valorInteres
     }
   }
 
-  // Crear préstamo
+  // Crear préstamo con la nueva lógica (SIN cronograma_pagos)
   const crearPrestamo = async (prestamoData: any, deudorId: string): Promise<string> => {
     try {
+      // Validar datos del préstamo
+      const validacion = PrestamoValidador.validarPrestamo(
+        prestamoData.monto_principal,
+        prestamoData.tasa_interes,
+        prestamoData.numero_cuotas,
+        prestamoData.periodicidad,
+        prestamoData.fecha_desembolso,
+        prestamoData.valor_seguro || 0,
+        prestamoData.dia_pago_semanal
+      )
+
+      if (!validacion.isValid) {
+        throw new Error(validacion.errors.join(', '))
+      }
+
       // Obtener el usuario autenticado y su empresa_id
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
@@ -199,20 +250,36 @@ export function useNuevoCredito() {
       const { data, error } = await supabase
         .from('prestamos')
         .insert({
+          // IDs y relaciones
           ruta_id: prestamoData.ruta_id,
           deudor_id: deudorId,
-          numero_prestamo: numeroData, // Usar el número generado
+          creado_por: user.id,
+          
+          // Información del préstamo
+          numero_prestamo: numeroData,
           monto_principal: prestamoData.monto_principal,
-          tasa_interes: prestamoData.tasa_interes / 100, // Convertir porcentaje a decimal
-          valor_seguro: prestamoData.valor_seguro || 0,
+          tasa_interes: prestamoData.tasa_interes / 100, // Convertir a decimal (20% → 0.20)
           periodicidad: prestamoData.periodicidad,
           numero_cuotas: prestamoData.numero_cuotas,
+          
+          // Valores calculados
           valor_cuota: calculos.valor_cuota,
           monto_total: calculos.monto_total,
+          saldo_pendiente: calculos.monto_total, // Iniciar con el monto total
+          
+          // Fechas
           fecha_desembolso: prestamoData.fecha_desembolso,
           fecha_primer_pago: calculos.fecha_primer_pago,
+          
+          // Opcionales
+          valor_seguro: prestamoData.valor_seguro || 0,
+          observaciones: prestamoData.observaciones || null,
+          dia_pago_semanal: prestamoData.dia_pago_semanal || null,
+          
+          // Estado inicial
           estado: 'activo',
-          observaciones: prestamoData.observaciones,
+          cuotas_pagadas: 0,
+          fecha_ultimo_pago: null,
           fecha_creacion: new Date().toISOString()
         })
         .select('id')
@@ -226,88 +293,7 @@ export function useNuevoCredito() {
     }
   }
 
-  // Método privado para generar cronograma de pagos
-  const generarCronogramaPagos = async (
-    prestamo_id: string,
-    config: {
-      fecha_primer_pago: Date;
-      periodicidad: string;
-      numero_cuotas: number;
-      valor_cuota: number;
-      monto_principal: number;
-      tasa_interes: number;
-    }
-  ) => {
-    const cronograma = [];
-    let fecha_actual = new Date(config.fecha_primer_pago);
-    
-    // Calcular valores constantes por cuota
-    const valor_capital_constante = config.monto_principal / config.numero_cuotas;
-    const valor_interes_constante = (config.monto_principal * config.tasa_interes) / config.numero_cuotas;
-    let saldo_pendiente = config.monto_principal;
-
-    for (let i = 1; i <= config.numero_cuotas; i++) {
-      // Actualizar saldo pendiente
-      saldo_pendiente -= valor_capital_constante;
-
-      cronograma.push({
-        prestamo_id,
-        numero_cuota: i,
-        fecha_vencimiento: fecha_actual.toISOString().split('T')[0],
-        valor_cuota: config.valor_cuota,
-        valor_capital: valor_capital_constante,
-        valor_interes: valor_interes_constante,
-        saldo_pendiente: Math.max(0, saldo_pendiente),
-        estado: 'pendiente',
-        valor_pagado: 0,
-        fecha_creacion: new Date().toISOString()
-      });
-
-      // Incrementar fecha según periodicidad
-      switch (config.periodicidad) {
-        case 'diario':
-          fecha_actual.setDate(fecha_actual.getDate() + 1);
-          break;
-        case 'semanal':
-          fecha_actual.setDate(fecha_actual.getDate() + 7);
-          break;
-        case 'quincenal':
-          fecha_actual.setDate(fecha_actual.getDate() + 15);
-          break;
-        case 'mensual':
-          fecha_actual.setMonth(fecha_actual.getMonth() + 1);
-          break;
-      }
-    }
-
-    // Insertar directamente en la base de datos
-    const { error } = await supabase
-      .from('cronograma_pagos')
-      .insert(cronograma);
-
-    if (error) throw error;
-  }
-
-  // Función pública que prepara los datos y llama al método privado
-  const generarCronograma = async (prestamoId: string, prestamoData: any) => {
-    try {
-      const calculos = calcularPrestamo(prestamoData)
-      
-      await generarCronogramaPagos(prestamoId, {
-        fecha_primer_pago: new Date(calculos.fecha_primer_pago),
-        periodicidad: prestamoData.periodicidad,
-        numero_cuotas: prestamoData.numero_cuotas,
-        valor_cuota: calculos.valor_cuota,
-        monto_principal: prestamoData.monto_principal,
-        tasa_interes: prestamoData.tasa_interes / 100 // Convertir porcentaje a decimal
-      })
-    } catch (error) {
-      console.error('Error generando cronograma:', error)
-      throw error
-    }
-  }
-
-  // Proceso completo de creación de crédito
+  // Proceso completo de creación de crédito (SIN cronograma_pagos)
   const crearCreditoCompleto = async (creditoData: NuevoCreditoData) => {
     try {
       setLoading(true)
@@ -315,11 +301,8 @@ export function useNuevoCredito() {
       // 1. Crear o actualizar cliente
       const deudorId = await crearOActualizarCliente(creditoData.cliente)
 
-      // 2. Crear préstamo
+      // 2. Crear préstamo (ya no genera cronograma)
       const prestamoId = await crearPrestamo(creditoData.prestamo, deudorId)
-
-      // 3. Generar cronograma
-      await generarCronograma(prestamoId, creditoData.prestamo)
 
       toast({
         title: "¡Éxito!",
@@ -327,11 +310,11 @@ export function useNuevoCredito() {
       })
 
       return { success: true, prestamoId }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creando crédito completo:', error)
       toast({
         title: "Error",
-        description: "No se pudo crear el crédito. Inténtalo de nuevo.",
+        description: error.message || "No se pudo crear el crédito. Inténtalo de nuevo.",
         variant: "destructive"
       })
       return { success: false }
@@ -343,8 +326,11 @@ export function useNuevoCredito() {
   return {
     loading,
     rutas,
+    clientes,
     cargarRutas,
+    cargarClientes,
     buscarCliente,
+    obtenerClientePorId,
     calcularPrestamo,
     crearCreditoCompleto
   }

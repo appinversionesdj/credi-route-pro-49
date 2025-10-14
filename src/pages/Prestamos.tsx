@@ -3,13 +3,23 @@ import { useNavigate } from "react-router-dom"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { 
   Plus, 
   Search, 
   Filter,
-  Loader2
+  Loader2,
+  X,
+  AlertCircle
 } from "lucide-react"
 import { usePrestamos } from "@/hooks/usePrestamos"
+import { useRutas } from "@/hooks/useRutas"
 import { PrestamoFiltros } from "@/types/prestamo"
 import PrestamoCard from "@/components/prestamos/PrestamoCard"
 import PrestamoEstadisticas from "@/components/prestamos/PrestamoEstadisticas"
@@ -25,22 +35,32 @@ export default function Prestamos() {
   const [showFormulario, setShowFormulario] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [prestamoToInactivar, setPrestamoToInactivar] = useState<string | null>(null)
+  const [rutaSeleccionada, setRutaSeleccionada] = useState<string>("")
+  const [soloVencidos, setSoloVencidos] = useState(false)
   const navigate = useNavigate()
   
   // Hook para manejar préstamos con Supabase
   const { prestamos, loading, error, obtenerEstadisticas, crearPrestamo, inactivarPrestamo } = usePrestamos(filtros)
   
-  // Paginación
-  const { paginatedData: prestamosPaginados, pagination, controls } = usePagination(prestamos, 10)
+  // Hook para obtener rutas
+  const { rutas, loading: loadingRutas } = useRutas()
+  
+  // Filtrar préstamos vencidos en el frontend
+  const prestamosFiltrados = soloVencidos 
+    ? prestamos.filter(p => (p.cuotasVencidas || 0) > 0)
+    : prestamos
+  
+  // Paginación con préstamos filtrados
+  const { paginatedData: prestamosPaginados, pagination, controls } = usePagination(prestamosFiltrados, 10)
 
-  // Cargar estadísticas al montar el componente
+  // Cargar estadísticas al montar el componente y cuando cambien los filtros
   useEffect(() => {
     const cargarEstadisticas = async () => {
-      const stats = await obtenerEstadisticas()
+      const stats = await obtenerEstadisticas(filtros)
       setEstadisticas(stats)
     }
     cargarEstadisticas()
-  }, [prestamos]) // Recargar cuando cambien los préstamos
+  }, [filtros, prestamos]) // Recargar cuando cambien los filtros o los préstamos
 
   // Actualizar filtros cuando cambie el término de búsqueda
   useEffect(() => {
@@ -53,6 +73,25 @@ export default function Prestamos() {
 
     return () => clearTimeout(timeoutId)
   }, [searchTerm])
+
+  // Actualizar filtros cuando cambie la ruta seleccionada
+  useEffect(() => {
+    setFiltros(prev => ({
+      ...prev,
+      ruta_id: rutaSeleccionada && rutaSeleccionada !== "todas" ? rutaSeleccionada : undefined
+    }))
+  }, [rutaSeleccionada])
+
+  const handleLimpiarFiltros = () => {
+    setSearchTerm("")
+    setRutaSeleccionada("")
+    setSoloVencidos(false)
+    setFiltros({})
+  }
+
+  const contarVencidos = () => {
+    return prestamos.filter(p => (p.cuotasVencidas || 0) > 0).length
+  }
 
   const handlePrestamoView = (prestamo: any) => {
     navigate(`/prestamos/${prestamo.id}`)
@@ -81,9 +120,9 @@ export default function Prestamos() {
   }
 
   const handleSuccess = () => {
-    // Recargar estadísticas y datos
+    // Recargar estadísticas y datos con los filtros actuales
     const cargarEstadisticas = async () => {
-      const stats = await obtenerEstadisticas()
+      const stats = await obtenerEstadisticas(filtros)
       setEstadisticas(stats)
     }
     cargarEstadisticas()
@@ -119,21 +158,78 @@ export default function Prestamos() {
       {/* Search and Filters */}
       <Card>
         <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input 
-                placeholder="Buscar por número, cliente o cédula..." 
-                className="pl-10"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Buscar por número, cliente o cédula..." 
+                  className="pl-10"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  disabled={loading}
+                />
+              </div>
+              
+              <Select
+                value={rutaSeleccionada}
+                onValueChange={setRutaSeleccionada}
+                disabled={loading || loadingRutas}
+              >
+                <SelectTrigger className="w-full sm:w-[250px]">
+                  <SelectValue placeholder="Filtrar por ruta" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todas">Todas las rutas</SelectItem>
+                  {rutas.map((ruta) => (
+                    <SelectItem key={ruta.id} value={ruta.id}>
+                      {ruta.nombre_ruta}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Button 
+                variant={soloVencidos ? "destructive" : "outline"}
+                onClick={() => setSoloVencidos(!soloVencidos)}
                 disabled={loading}
-              />
+                className="w-full sm:w-auto"
+              >
+                <AlertCircle className="w-4 h-4 mr-2" />
+                Vencidos
+                {!loading && contarVencidos() > 0 && (
+                  <span className="ml-2 px-2 py-0.5 rounded-full bg-background/20 text-xs font-semibold">
+                    {contarVencidos()}
+                  </span>
+                )}
+              </Button>
+
+              {(searchTerm || rutaSeleccionada || soloVencidos) && (
+                <Button 
+                  variant="outline" 
+                  onClick={handleLimpiarFiltros}
+                  disabled={loading}
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Limpiar
+                </Button>
+              )}
             </div>
-            <Button variant="outline" disabled={loading}>
-              <Filter className="w-4 h-4 mr-2" />
-              Filtros
-            </Button>
+            
+            <div className="flex flex-wrap gap-2 text-sm">
+              {rutaSeleccionada && rutaSeleccionada !== "todas" && (
+                <div className="text-muted-foreground">
+                  <span className="font-medium text-foreground">Ruta:</span>{" "}
+                  {rutas.find(r => r.id === rutaSeleccionada)?.nombre_ruta}
+                </div>
+              )}
+              {soloVencidos && (
+                <div className="text-red-600 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  <span className="font-medium">Mostrando solo préstamos con cuotas vencidas</span>
+                </div>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -159,14 +255,14 @@ export default function Prestamos() {
       )}
 
       {/* Empty State */}
-      {!loading && !error && prestamos.length === 0 && (
+      {!loading && !error && prestamosFiltrados.length === 0 && (
         <Card>
           <CardContent className="p-12 text-center">
             <div className="text-muted-foreground">
               <p className="text-lg font-medium mb-2">No se encontraron préstamos</p>
               <p className="text-sm">
-                {searchTerm 
-                  ? "Intenta con otros términos de búsqueda" 
+                {searchTerm || rutaSeleccionada || soloVencidos
+                  ? "Intenta ajustar los filtros de búsqueda" 
                   : "Comienza agregando tu primer préstamo"
                 }
               </p>
@@ -176,7 +272,7 @@ export default function Prestamos() {
       )}
 
       {/* Préstamos List */}
-      {!loading && !error && prestamos.length > 0 && (
+      {!loading && !error && prestamosFiltrados.length > 0 && (
         <Card>
           <CardContent className="p-0">
             {/* Encabezados de la tabla */}

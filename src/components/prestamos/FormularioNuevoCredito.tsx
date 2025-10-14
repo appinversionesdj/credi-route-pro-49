@@ -40,15 +40,19 @@ export default function FormularioNuevoCredito({
   const { 
     loading, 
     rutas, 
+    clientes, 
     cargarRutas, 
-    buscarCliente, 
+    cargarClientes,
+    obtenerClientePorId, 
     calcularPrestamo, 
     crearCreditoCompleto 
   } = useNuevoCredito()
 
   const [step, setStep] = useState(1)
   const [clienteExistente, setClienteExistente] = useState<ClienteExistente | null>(null)
-  const [busquedaCedula, setBusquedaCedula] = useState('')
+  const [clienteSeleccionadoId, setClienteSeleccionadoId] = useState<string>('')
+  const [mostrarFormularioCliente, setMostrarFormularioCliente] = useState(false)
+  const [busquedaCliente, setBusquedaCliente] = useState('')
   const [calculos, setCalculos] = useState<any>(null)
 
   const [formData, setFormData] = useState<NuevoCreditoData>({
@@ -112,23 +116,61 @@ export default function FormularioNuevoCredito({
   useEffect(() => {
     if (open) {
       cargarRutas()
+      cargarClientes()
       setStep(1)
       setClienteExistente(null)
-      setBusquedaCedula('')
+      setClienteSeleccionadoId('')
+      setMostrarFormularioCliente(false)
+      setBusquedaCliente('')
       setCalculos(null)
+      // Resetear formData
+      setFormData({
+        cliente: {
+          nombre: '',
+          apellido: '',
+          cedula: '',
+          telefono: '',
+          direccion: '',
+          ocupacion: '',
+          referencias: []
+        },
+        prestamo: {
+          ruta_id: '',
+          monto_principal: 0,
+          tasa_interes: 20,
+          valor_seguro: 0,
+          periodicidad: '',
+          numero_cuotas: 0,
+          fecha_desembolso: new Date().toISOString().split('T')[0],
+          observaciones: ''
+        }
+      })
     }
   }, [open])
 
-  const handleBuscarCliente = async () => {
-    if (!busquedaCedula.trim()) return
+  // Filtrar clientes por búsqueda
+  const clientesFiltrados = clientes.filter(cliente => {
+    const searchTerm = busquedaCliente.toLowerCase()
+    const nombreCompleto = `${cliente.nombre} ${cliente.apellido}`.toLowerCase()
+    const cedula = cliente.cedula.toString()
+    return nombreCompleto.includes(searchTerm) || cedula.includes(searchTerm)
+  })
 
-    const cliente = await buscarCliente(busquedaCedula)
+  // Manejar selección de cliente existente
+  const handleSeleccionarCliente = async (clienteId: string) => {
+    if (!clienteId) return
+    
+    setClienteSeleccionadoId(clienteId)
+    const cliente = await obtenerClientePorId(clienteId)
+    
     if (cliente) {
       setClienteExistente(cliente)
+      setMostrarFormularioCliente(true) // Mostrar formulario con datos pre-cargados
       setFormData(prev => ({
         ...prev,
         cliente: {
           ...prev.cliente,
+          id: cliente.id,
           cedula: cliente.cedula.toString(),
           nombre: cliente.nombre,
           apellido: cliente.apellido,
@@ -138,22 +180,26 @@ export default function FormularioNuevoCredito({
           referencias: cliente.referencias || []
         }
       }))
-    } else {
+    }
+  }
+
+  // Manejar creación de nuevo cliente
+  const handleCrearNuevoCliente = () => {
+    setClienteSeleccionadoId('')
       setClienteExistente(null)
+    setMostrarFormularioCliente(true)
       setFormData(prev => ({
         ...prev,
         cliente: {
-          ...prev.cliente,
-          cedula: busquedaCedula,
           nombre: '',
           apellido: '',
+        cedula: '',
           telefono: '',
           direccion: '',
           ocupacion: '',
           referencias: []
         }
       }))
-    }
   }
 
   const handleCalcularPrestamo = () => {
@@ -191,58 +237,141 @@ export default function FormularioNuevoCredito({
 
   const renderStep1 = () => (
     <div className="space-y-4">
-      {/* Búsqueda de Cliente - Compacto */}
+      {/* Selección de Cliente */}
+      {!mostrarFormularioCliente ? (
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Search className="w-4 h-4 text-blue-600" />
-          <h3 className="font-medium text-blue-800">Buscar Cliente Existente</h3>
-        </div>
-        <div className="flex gap-2">
-          <div className="flex-1">
-             <Input
-               placeholder="Cédula del cliente..."
-               value={busquedaCedula}
-               onChange={(e) => setBusquedaCedula(e.target.value)}
-               className="h-9 text-left"
-             />
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-blue-600" />
+              <h3 className="font-medium text-blue-800">Seleccionar Cliente</h3>
           </div>
           <Button 
-            onClick={handleBuscarCliente} 
-            disabled={!busquedaCedula.trim()}
+              onClick={handleCrearNuevoCliente}
             size="sm"
+              variant="outline"
+              className="h-8"
           >
-            <Search className="w-4 h-4 mr-1" />
-            Buscar
+              <Plus className="w-4 h-4 mr-1" />
+              Crear Nuevo
           </Button>
         </div>
 
-        {/* Resultado de búsqueda - Compacto */}
-        {clienteExistente && (
-          <div className="mt-3 p-3 bg-green-100 border border-green-200 rounded-lg">
-            <div className="flex items-center gap-2">
-              <User className="w-4 h-4 text-green-600" />
-              <Badge className="bg-green-200 text-green-800 text-xs">Encontrado</Badge>
+          {/* Buscador */}
+          <div className="mb-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nombre o cédula..."
+                value={busquedaCliente}
+                onChange={(e) => setBusquedaCliente(e.target.value)}
+                className="h-9 pl-9"
+              />
             </div>
-            <p className="text-sm mt-1">
-              <strong>{clienteExistente.nombre} {clienteExistente.apellido}</strong> - CC: {clienteExistente.cedula?.toString()}
-            </p>
           </div>
-        )}
 
-        {!clienteExistente && busquedaCedula && (
-          <div className="mt-3 p-3 bg-orange-100 border border-orange-200 rounded-lg">
-            <div className="flex items-center gap-2">
-              <Plus className="w-4 h-4 text-orange-600" />
-              <Badge className="bg-orange-200 text-orange-800 text-xs">Nuevo Cliente</Badge>
+          {/* Tabla de Clientes */}
+          <div className="border rounded-lg overflow-hidden bg-white">
+            <div className="max-h-64 overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 sticky top-0">
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-3 font-medium text-gray-700">Nombre</th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700">Cédula</th>
+                    <th className="text-left py-2 px-3 font-medium text-gray-700">Teléfono</th>
+                    <th className="text-center py-2 px-3 font-medium text-gray-700">Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {clientesFiltrados.length > 0 ? (
+                    clientesFiltrados.map((cliente) => (
+                      <tr 
+                        key={cliente.id}
+                        className={`border-b hover:bg-blue-50 transition-colors ${
+                          clienteSeleccionadoId === cliente.id ? 'bg-blue-100' : ''
+                        }`}
+                      >
+                        <td className="py-2 px-3">{cliente.nombre} {cliente.apellido}</td>
+                        <td className="py-2 px-3 font-mono text-xs">{cliente.cedula}</td>
+                        <td className="py-2 px-3 font-mono text-xs">{cliente.telefono || '-'}</td>
+                        <td className="py-2 px-3 text-center">
+                          <Button
+                            onClick={() => handleSeleccionarCliente(cliente.id)}
+                            size="sm"
+                            variant={clienteSeleccionadoId === cliente.id ? "default" : "ghost"}
+                            className="h-7 text-xs"
+                          >
+                            {clienteSeleccionadoId === cliente.id ? 'Seleccionado' : 'Seleccionar'}
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={4} className="py-8 text-center text-muted-foreground">
+                        <User className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                        <p>No se encontraron clientes</p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
-            <p className="text-sm mt-1">Completa los datos para crear uno nuevo</p>
           </div>
-        )}
+        </div>
+      ) : (
+        /* Formulario de Cliente (Nuevo o Editar) */
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              {clienteExistente ? (
+                <>
+                  <User className="w-4 h-4 text-blue-600" />
+                  <h3 className="font-medium text-blue-800">Cliente Seleccionado</h3>
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4 text-blue-600" />
+                  <h3 className="font-medium text-blue-800">Nuevo Cliente</h3>
+                </>
+              )}
+            </div>
+            <Button 
+              onClick={() => {
+                setMostrarFormularioCliente(false)
+                setClienteExistente(null)
+                setClienteSeleccionadoId('')
+              }}
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs"
+            >
+              Cancelar
+            </Button>
+          </div>
+          
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="cedula" className="text-xs">Cédula *</Label>
+                <Input
+                  id="cedula"
+                  value={formData.cliente.cedula}
+                  onChange={(e) => updateCliente('cedula', e.target.value)}
+                  placeholder="1234567890"
+                  className="h-9 text-left font-mono"
+                />
+              </div>
+              <div>
+                <Label htmlFor="telefono" className="text-xs">Teléfono</Label>
+                <Input
+                  id="telefono"
+                  value={formData.cliente.telefono}
+                  onChange={(e) => updateCliente('telefono', e.target.value)}
+                  placeholder="300 123 4567"
+                  className="h-9 text-left"
+                />
+              </div>
       </div>
-
-      {/* Información del Cliente - Compacto */}
-      <div className="space-y-3">
-        <h3 className="font-medium text-sm text-muted-foreground">Datos del Cliente</h3>
         
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -267,17 +396,6 @@ export default function FormularioNuevoCredito({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label htmlFor="telefono" className="text-xs">Teléfono</Label>
-            <Input
-              id="telefono"
-              value={formData.cliente.telefono}
-              onChange={(e) => updateCliente('telefono', e.target.value)}
-              placeholder="300 123 4567"
-              className="h-9 text-left"
-            />
-          </div>
           <div>
             <Label htmlFor="ocupacion" className="text-xs">Ocupación</Label>
             <Input
@@ -287,7 +405,6 @@ export default function FormularioNuevoCredito({
               placeholder="Comerciante, Empleado..."
               className="h-9 text-left"
             />
-          </div>
         </div>
 
         <div>
@@ -302,6 +419,8 @@ export default function FormularioNuevoCredito({
           />
         </div>
       </div>
+        </div>
+      )}
     </div>
   )
 
@@ -408,17 +527,31 @@ export default function FormularioNuevoCredito({
           </Select>
         </div>
 
+        {/* Día de pago semanal (solo para semanal o quincenal) */}
+        {(formData.prestamo.periodicidad === 'semanal' || formData.prestamo.periodicidad === 'quincenal') && (
         <div className="mt-3">
-          <Label htmlFor="observaciones" className="text-xs">Observaciones</Label>
-          <Textarea
-            id="observaciones"
-            value={formData.prestamo.observaciones}
-            onChange={(e) => updatePrestamo('observaciones', e.target.value)}
-            placeholder="Observaciones adicionales..."
-            rows={2}
-            className="resize-none text-left"
-          />
+            <Label htmlFor="dia_pago" className="text-xs">Día de Pago *</Label>
+            <Select 
+              value={formData.prestamo.dia_pago_semanal} 
+              onValueChange={(value) => updatePrestamo('dia_pago_semanal', value)}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Selecciona el día de la semana" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="lunes">Lunes</SelectItem>
+                <SelectItem value="martes">Martes</SelectItem>
+                <SelectItem value="miércoles">Miércoles</SelectItem>
+                <SelectItem value="jueves">Jueves</SelectItem>
+                <SelectItem value="viernes">Viernes</SelectItem>
+                <SelectItem value="sábado">Sábado</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              El primer pago será el día seleccionado de la próxima semana
+            </p>
         </div>
+        )}
 
       </div>
     </div>
@@ -497,6 +630,12 @@ export default function FormularioNuevoCredito({
                   <span className="text-muted-foreground">Periodicidad:</span>
                   <span className="font-semibold capitalize">{formData.prestamo.periodicidad}</span>
                 </div>
+                {formData.prestamo.dia_pago_semanal && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Día de Pago:</span>
+                    <span className="font-semibold capitalize">{formData.prestamo.dia_pago_semanal}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -585,7 +724,10 @@ export default function FormularioNuevoCredito({
                    setStep(step + 1)
                  }}
                  disabled={
-                   step === 1 ? (!formData.cliente.nombre || !formData.cliente.apellido || !formData.cliente.cedula) :
+                   step === 1 ? (
+                     // En paso 1: debe tener cliente seleccionado O estar creando uno nuevo con datos completos
+                     !clienteExistente && (!mostrarFormularioCliente || !formData.cliente.nombre || !formData.cliente.apellido || !formData.cliente.cedula)
+                   ) :
                    step === 2 ? (!formData.prestamo.ruta_id || !formData.prestamo.monto_principal || !formData.prestamo.numero_cuotas || formData.prestamo.numero_cuotas <= 0) :
                    false
                  }

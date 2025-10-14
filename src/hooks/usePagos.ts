@@ -238,6 +238,91 @@ export const usePagos = () => {
     }
   }
 
+  const eliminarPagoRegistrado = async (pagoId: string): Promise<boolean> => {
+    try {
+      setLoading(true)
+
+      // Obtener información del pago a eliminar
+      const { data: pago, error: pagoError } = await supabase
+        .from('pagos_recibidos')
+        .select('*')
+        .eq('id', pagoId)
+        .single()
+
+      if (pagoError || !pago) {
+        throw new Error('No se pudo obtener la información del pago')
+      }
+
+      // Obtener información del préstamo
+      const { data: prestamo, error: prestamoError } = await supabase
+        .from('prestamos')
+        .select('saldo_pendiente, cuotas_pagadas, valor_cuota')
+        .eq('id', pago.prestamo_id)
+        .single()
+
+      if (prestamoError || !prestamo) {
+        throw new Error('No se pudo obtener la información del préstamo')
+      }
+
+      // Calcular cuántas cuotas representa este pago
+      const cuotasDelPago = Math.floor(pago.monto_pagado / prestamo.valor_cuota)
+      const montoRestante = pago.monto_pagado % prestamo.valor_cuota
+
+      // Calcular nuevos valores
+      let nuevasCuotasPagadas = prestamo.cuotas_pagadas
+      
+      // Si el pago cubría cuotas completas, restarlas
+      if (cuotasDelPago > 0) {
+        nuevasCuotasPagadas = Math.max(0, prestamo.cuotas_pagadas - cuotasDelPago)
+      }
+      
+      // Si había un monto restante (abono parcial), también restar esa cuota
+      if (montoRestante > 0 && nuevasCuotasPagadas > 0) {
+        nuevasCuotasPagadas = Math.max(0, nuevasCuotasPagadas - 1)
+      }
+
+      // Calcular nuevo saldo pendiente (aumentar el saldo)
+      const nuevoSaldoPendiente = prestamo.saldo_pendiente + pago.monto_pagado
+
+      // Eliminar el pago
+      const { error: deletePagoError } = await supabase
+        .from('pagos_recibidos')
+        .delete()
+        .eq('id', pagoId)
+
+      if (deletePagoError) throw deletePagoError
+
+      // Actualizar el préstamo
+      const { error: updatePrestamoError } = await supabase
+        .from('prestamos')
+        .update({
+          saldo_pendiente: nuevoSaldoPendiente,
+          cuotas_pagadas: nuevasCuotasPagadas,
+          fecha_actualizacion: new Date().toISOString()
+        })
+        .eq('id', pago.prestamo_id)
+
+      if (updatePrestamoError) throw updatePrestamoError
+
+      toast({
+        title: '¡Pago eliminado!',
+        description: `Se eliminó el pago de ${pago.monto_pagado.toLocaleString('es-CO', { style: 'currency', currency: 'COP' })} y se ajustó el saldo del préstamo.`,
+      })
+      return true
+    } catch (error) {
+      console.error('Error eliminando pago:', error)
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'No se pudo eliminar el pago.',
+        variant: 'destructive',
+      })
+      return false
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Función antigua para compatibilidad (eliminar cuota del cronograma)
   const eliminarPago = async (cuotaId: string): Promise<boolean> => {
     try {
       setLoading(true)
@@ -318,6 +403,7 @@ export const usePagos = () => {
     registrarPago,
     obtenerPagosPrestamo,
     recalcularSaldosPendientes,
-    eliminarPago
+    eliminarPago,
+    eliminarPagoRegistrado
   }
 }

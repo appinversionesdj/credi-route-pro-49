@@ -20,6 +20,7 @@ export interface PrestamoExtendido extends Prestamo {
   saldoPendiente?: number
   proximaFecha?: string
   progreso?: number
+  cuotasVencidas?: number
 }
 
 // Tipo para filtros de búsqueda
@@ -40,7 +41,7 @@ export interface PrestamoEstadisticas {
   prestamosPagados: number
   carteraTotal: number
   saldoPendiente: number
-  montoPorVencer: number
+  tasaMorosidad: number
   promedioCuota: number
 }
 

@@ -8,7 +8,8 @@ import {
   RutaFiltros,
   RutaEstadisticas,
   BaseDiaria,
-  ConciliacionDiaria
+  ConciliacionDiaria,
+  DatosSemana
 } from "@/types/ruta"
 import { useToast } from "@/hooks/use-toast"
 
@@ -133,6 +134,134 @@ export function useRutas(filtros?: RutaFiltros) {
     }
   }
 
+  // Función auxiliar para calcular datos por semana
+  const calcularDatosPorSemana = async (rutaId: string): Promise<DatosSemana[]> => {
+    try {
+      // Obtener datos de las últimas 6 semanas
+      const fechaHoy = new Date()
+      const fechaInicio = new Date(fechaHoy)
+      fechaInicio.setDate(fechaInicio.getDate() - 42) // 6 semanas atrás
+
+      // Obtener préstamos por fecha_desembolso
+      const { data: prestamosData } = await supabase
+        .from("prestamos")
+        .select("monto_principal, fecha_desembolso")
+        .eq("ruta_id", rutaId)
+        .gte("fecha_desembolso", fechaInicio.toISOString().split('T')[0])
+        .neq("estado", "E")
+
+      // Obtener pagos por fecha_pago
+      const { data: pagosData } = await supabase
+        .from("pagos_recibidos")
+        .select("monto_pagado, fecha_pago, prestamo_id")
+        .gte("fecha_pago", fechaInicio.toISOString().split('T')[0])
+        .in("prestamo_id", 
+          prestamosData?.map(p => p.id) || []
+        )
+
+      // Obtener solo los pagos de préstamos de esta ruta
+      const prestamosIdsRuta = prestamosData?.map(p => (p as any).id) || []
+      const { data: todosPagosData } = await supabase
+        .from("pagos_recibidos")
+        .select("monto_pagado, fecha_pago, prestamo:prestamos!inner(ruta_id)")
+        .eq("prestamo.ruta_id", rutaId)
+        .gte("fecha_pago", fechaInicio.toISOString().split('T')[0])
+
+      // Obtener gastos por fecha_gasto
+      const { data: gastosData } = await supabase
+        .from("gastos_diarios")
+        .select("monto, fecha_gasto")
+        .eq("ruta_id", rutaId)
+        .gte("fecha_gasto", fechaInicio.toISOString().split('T')[0])
+
+      // Función para obtener número de semana
+      const obtenerNumeroSemana = (fecha: Date) => {
+        const inicioAnio = new Date(fecha.getFullYear(), 0, 1)
+        const diasPasados = Math.floor((fecha.getTime() - inicioAnio.getTime()) / (24 * 60 * 60 * 1000))
+        return Math.ceil((diasPasados + inicioAnio.getDay() + 1) / 7)
+      }
+
+      // Función para obtener label de semana
+      const obtenerLabelSemana = (fecha: Date) => {
+        const numSemana = obtenerNumeroSemana(fecha)
+        const mesCorto = fecha.toLocaleDateString('es-CO', { month: 'short' })
+        return `S${numSemana} ${mesCorto}`
+      }
+
+      // Agrupar datos por semana
+      const semanas = new Map<string, { prestado: number, cobrado: number, gastos: number, fechaInicio: Date, fechaFin: Date }>()
+
+      // Inicializar últimas 6 semanas
+      for (let i = 5; i >= 0; i--) {
+        const fecha = new Date(fechaHoy)
+        fecha.setDate(fecha.getDate() - (i * 7))
+        
+        // Calcular inicio y fin de la semana (lunes a domingo)
+        const diaSemana = fecha.getDay()
+        const diff = fecha.getDate() - diaSemana + (diaSemana === 0 ? -6 : 1)
+        const fechaInicio = new Date(fecha.setDate(diff))
+        const fechaFin = new Date(fechaInicio)
+        fechaFin.setDate(fechaInicio.getDate() + 6)
+        
+        const label = obtenerLabelSemana(new Date(fecha))
+        semanas.set(label, { 
+          prestado: 0, 
+          cobrado: 0, 
+          gastos: 0,
+          fechaInicio: new Date(fechaInicio),
+          fechaFin: new Date(fechaFin)
+        })
+      }
+
+      // Agrupar préstamos
+      prestamosData?.forEach((prestamo: any) => {
+        const fecha = new Date(prestamo.fecha_desembolso)
+        const label = obtenerLabelSemana(fecha)
+        const semanaData = semanas.get(label)
+        if (semanaData) {
+          semanaData.prestado += Number(prestamo.monto_principal) || 0
+        }
+      })
+
+      // Agrupar pagos
+      todosPagosData?.forEach((pago: any) => {
+        if (pago.fecha_pago) {
+          const fecha = new Date(pago.fecha_pago)
+          const label = obtenerLabelSemana(fecha)
+          const semanaData = semanas.get(label)
+          if (semanaData) {
+            semanaData.cobrado += Number(pago.monto_pagado) || 0
+          }
+        }
+      })
+
+      // Agrupar gastos
+      gastosData?.forEach((gasto: any) => {
+        if (gasto.fecha_gasto) {
+          const fecha = new Date(gasto.fecha_gasto)
+          const label = obtenerLabelSemana(fecha)
+          const semanaData = semanas.get(label)
+          if (semanaData) {
+            semanaData.gastos += Number(gasto.monto) || 0
+          }
+        }
+      })
+
+      // Convertir a array
+      return Array.from(semanas.entries()).map(([semana, datos]) => ({
+        semana,
+        prestado: datos.prestado,
+        cobrado: datos.cobrado,
+        gastos: datos.gastos,
+        fechaInicio: datos.fechaInicio.toISOString().split('T')[0],
+        fechaFin: datos.fechaFin.toISOString().split('T')[0]
+      }))
+    } catch (error) {
+      console.error("Error al calcular datos por semana:", error)
+      return []
+    }
+  }
+
   // Función para obtener estadísticas de una ruta específica
   const obtenerEstadisticasRuta = async (rutaId: string): Promise<RutaEstadisticas> => {
     try {
@@ -165,7 +294,11 @@ export function useRutas(filtros?: RutaFiltros) {
           clientesActivos: 0,
           clientesMorosos: 0,
           caja: rutaData?.inversion_ruta || 0,
-          segurosRecogidos: 0
+          segurosRecogidos: 0,
+          totalPrestado: 0,
+          totalCobrado: 0,
+          totalGastos: 0,
+          datosPorSemana: []
         }
       }
 
@@ -223,9 +356,20 @@ export function useRutas(filtros?: RutaFiltros) {
       const clientesActivos = clientesData?.filter(p => p.estado === "activo").length || 0
       const clientesMorosos = clientesData?.filter(p => p.estado === "vencido").length || 0
 
-      // Calcular caja según la fórmula: inversion_ruta - monto_principal + seguros + pagosRealizados
+      // Obtener gastos diarios de la ruta
+      const { data: gastosData } = await supabase
+        .from("gastos_diarios")
+        .select("monto, fecha_gasto")
+        .eq("ruta_id", rutaId)
+
+      const totalGastos = gastosData?.reduce((sum, gasto) => sum + (Number(gasto.monto) || 0), 0) || 0
+
+      // Calcular caja según la fórmula: inversion_ruta - monto_principal + seguros + pagosRealizados - gastos
       const inversionRuta = rutaData?.inversion_ruta || 0
-      const caja = inversionRuta - totalPrestamosRealizados + totalSeguros + totalCobrosRealizados
+      const caja = inversionRuta - totalPrestamosRealizados + totalSeguros + totalCobrosRealizados - totalGastos
+
+      // Obtener datos por semana
+      const datosPorSemana = await calcularDatosPorSemana(rutaId)
 
       return {
         totalPrestamos,
@@ -243,7 +387,9 @@ export function useRutas(filtros?: RutaFiltros) {
         caja,
         segurosRecogidos,
         totalPrestado: totalPrestamosRealizados,
-        totalCobrado: totalCobrosRealizados
+        totalCobrado: totalCobrosRealizados,
+        totalGastos,
+        datosPorSemana
       }
     } catch (err) {
       console.error("Error al obtener estadísticas de ruta:", err)
@@ -500,6 +646,124 @@ export function useRuta(id: string) {
   return { ruta, loading, error }
 }
 
+// Función auxiliar para calcular datos por semana (reutilizada)
+async function calcularDatosPorSemana(rutaId: string): Promise<DatosSemana[]> {
+  try {
+    // Obtener datos de las últimas 6 semanas
+    const fechaHoy = new Date()
+    const fechaInicio = new Date(fechaHoy)
+    fechaInicio.setDate(fechaInicio.getDate() - 42) // 6 semanas atrás
+
+    // Obtener préstamos por fecha_desembolso
+    const { data: prestamosData } = await supabase
+      .from("prestamos")
+      .select("monto_principal, fecha_desembolso")
+      .eq("ruta_id", rutaId)
+      .gte("fecha_desembolso", fechaInicio.toISOString().split('T')[0])
+      .neq("estado", "E")
+
+    // Obtener solo los pagos de préstamos de esta ruta
+    const { data: todosPagosData } = await supabase
+      .from("pagos_recibidos")
+      .select("monto_pagado, fecha_pago, prestamo:prestamos!inner(ruta_id)")
+      .eq("prestamo.ruta_id", rutaId)
+      .gte("fecha_pago", fechaInicio.toISOString().split('T')[0])
+
+    // Obtener gastos por fecha_gasto
+    const { data: gastosData } = await supabase
+      .from("gastos_diarios")
+      .select("monto, fecha_gasto")
+      .eq("ruta_id", rutaId)
+      .gte("fecha_gasto", fechaInicio.toISOString().split('T')[0])
+
+    // Función para obtener número de semana
+    const obtenerNumeroSemana = (fecha: Date) => {
+      const inicioAnio = new Date(fecha.getFullYear(), 0, 1)
+      const diasPasados = Math.floor((fecha.getTime() - inicioAnio.getTime()) / (24 * 60 * 60 * 1000))
+      return Math.ceil((diasPasados + inicioAnio.getDay() + 1) / 7)
+    }
+
+    // Función para obtener label de semana
+    const obtenerLabelSemana = (fecha: Date) => {
+      const numSemana = obtenerNumeroSemana(fecha)
+      const mesCorto = fecha.toLocaleDateString('es-CO', { month: 'short' })
+      return `S${numSemana} ${mesCorto}`
+    }
+
+    // Agrupar datos por semana
+    const semanas = new Map<string, { prestado: number, cobrado: number, gastos: number, fechaInicio: Date, fechaFin: Date }>()
+
+    // Inicializar últimas 6 semanas
+    for (let i = 5; i >= 0; i--) {
+      const fecha = new Date(fechaHoy)
+      fecha.setDate(fecha.getDate() - (i * 7))
+      
+      // Calcular inicio y fin de la semana (lunes a domingo)
+      const diaSemana = fecha.getDay()
+      const diff = fecha.getDate() - diaSemana + (diaSemana === 0 ? -6 : 1)
+      const fechaInicio = new Date(fecha.setDate(diff))
+      const fechaFin = new Date(fechaInicio)
+      fechaFin.setDate(fechaInicio.getDate() + 6)
+      
+      const label = obtenerLabelSemana(new Date(fecha))
+      semanas.set(label, { 
+        prestado: 0, 
+        cobrado: 0, 
+        gastos: 0,
+        fechaInicio: new Date(fechaInicio),
+        fechaFin: new Date(fechaFin)
+      })
+    }
+
+    // Agrupar préstamos
+    prestamosData?.forEach((prestamo: any) => {
+      const fecha = new Date(prestamo.fecha_desembolso)
+      const label = obtenerLabelSemana(fecha)
+      const semanaData = semanas.get(label)
+      if (semanaData) {
+        semanaData.prestado += Number(prestamo.monto_principal) || 0
+      }
+    })
+
+    // Agrupar pagos
+    todosPagosData?.forEach((pago: any) => {
+      if (pago.fecha_pago) {
+        const fecha = new Date(pago.fecha_pago)
+        const label = obtenerLabelSemana(fecha)
+        const semanaData = semanas.get(label)
+        if (semanaData) {
+          semanaData.cobrado += Number(pago.monto_pagado) || 0
+        }
+      }
+    })
+
+    // Agrupar gastos
+    gastosData?.forEach((gasto: any) => {
+      if (gasto.fecha_gasto) {
+        const fecha = new Date(gasto.fecha_gasto)
+        const label = obtenerLabelSemana(fecha)
+        const semanaData = semanas.get(label)
+        if (semanaData) {
+          semanaData.gastos += Number(gasto.monto) || 0
+        }
+      }
+    })
+
+    // Convertir a array
+    return Array.from(semanas.entries()).map(([semana, datos]) => ({
+      semana,
+      prestado: datos.prestado,
+      cobrado: datos.cobrado,
+      gastos: datos.gastos,
+      fechaInicio: datos.fechaInicio.toISOString().split('T')[0],
+      fechaFin: datos.fechaFin.toISOString().split('T')[0]
+    }))
+  } catch (error) {
+    console.error("Error al calcular datos por semana:", error)
+    return []
+  }
+}
+
 // Función auxiliar para obtener estadísticas (reutilizada)
 async function obtenerEstadisticasRuta(rutaId: string): Promise<RutaEstadisticas> {
   try {
@@ -533,7 +797,9 @@ async function obtenerEstadisticasRuta(rutaId: string): Promise<RutaEstadisticas
         caja: rutaData?.inversion_ruta || 0,
         segurosRecogidos: 0,
         totalPrestado: 0,
-        totalCobrado: 0
+        totalCobrado: 0,
+        totalGastos: 0,
+        datosPorSemana: []
       }
     }
 
@@ -589,9 +855,20 @@ async function obtenerEstadisticasRuta(rutaId: string): Promise<RutaEstadisticas
     const clientesActivos = clientesData?.filter(p => p.estado === "activo").length || 0
     const clientesMorosos = clientesData?.filter(p => p.estado === "vencido").length || 0
 
-    // Calcular caja según la fórmula: inversion_ruta - monto_principal + seguros + pagosRealizados
+    // Obtener gastos diarios de la ruta
+    const { data: gastosData } = await supabase
+      .from("gastos_diarios")
+      .select("monto")
+      .eq("ruta_id", rutaId)
+
+    const totalGastos = gastosData?.reduce((sum, gasto) => sum + (Number(gasto.monto) || 0), 0) || 0
+
+    // Calcular caja según la fórmula: inversion_ruta - monto_principal + seguros + pagosRealizados - gastos
     const inversionRuta = rutaData?.inversion_ruta || 0
-    const caja = inversionRuta - totalPrestamosRealizados + totalSeguros + totalCobrosRealizados
+    const caja = inversionRuta - totalPrestamosRealizados + totalSeguros + totalCobrosRealizados - totalGastos
+
+    // Obtener datos por semana
+    const datosPorSemana = await calcularDatosPorSemana(rutaId)
 
     return {
       totalPrestamos,
@@ -609,27 +886,31 @@ async function obtenerEstadisticasRuta(rutaId: string): Promise<RutaEstadisticas
       caja,
       segurosRecogidos,
       totalPrestado: totalPrestamosRealizados,
-      totalCobrado: totalCobrosRealizados
+      totalCobrado: totalCobrosRealizados,
+      totalGastos,
+      datosPorSemana
     }
-  } catch (err) {
-    console.error("Error al obtener estadísticas de ruta:", err)
-    return {
-      totalPrestamos: 0,
-      prestamosActivos: 0,
-      prestamosVencidos: 0,
-      prestamosPagados: 0,
-      carteraTotal: 0,
-      saldoPendiente: 0,
-      montoPorVencer: 0,
-      promedioCuota: 0,
-      rentabilidad: 0,
-      eficienciaCobro: 0,
-      clientesActivos: 0,
-      clientesMorosos: 0,
-      caja: 0,
-      segurosRecogidos: 0,
-      totalPrestado: 0,
-      totalCobrado: 0
+    } catch (err) {
+      console.error("Error al obtener estadísticas de ruta:", err)
+      return {
+        totalPrestamos: 0,
+        prestamosActivos: 0,
+        prestamosVencidos: 0,
+        prestamosPagados: 0,
+        carteraTotal: 0,
+        saldoPendiente: 0,
+        montoPorVencer: 0,
+        promedioCuota: 0,
+        rentabilidad: 0,
+        eficienciaCobro: 0,
+        clientesActivos: 0,
+        clientesMorosos: 0,
+        caja: 0,
+        segurosRecogidos: 0,
+        totalPrestado: 0,
+        totalCobrado: 0,
+        totalGastos: 0,
+        datosPorSemana: []
+      }
     }
   }
-}

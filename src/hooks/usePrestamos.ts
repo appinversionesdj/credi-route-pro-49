@@ -72,11 +72,73 @@ export function usePrestamos(filtros?: PrestamoFiltros) {
 
       console.log("✅ Préstamos obtenidos:", data?.length || 0)
 
+      // Función para calcular cuotas vencidas
+      const calcularCuotasVencidas = (
+        fechaPrimerPago: string | null,
+        periodicidad: string,
+        cuotasPagadas: number,
+        cuotasTotales: number
+      ): number => {
+        if (!fechaPrimerPago || cuotasPagadas >= cuotasTotales) {
+          return 0
+        }
+
+        // Paso 1: Obtener fechas base
+        const fechaHoy = new Date()
+        const fechaInicio = new Date(fechaPrimerPago)
+        
+        // Paso 2: Determinar días entre cuotas
+        let diasEntreCuotas = 0
+        switch (periodicidad) {
+          case 'diario':
+            diasEntreCuotas = 1
+            break
+          case 'semanal':
+            diasEntreCuotas = 7
+            break
+          case 'quincenal':
+            diasEntreCuotas = 15
+            break
+          case 'mensual':
+            diasEntreCuotas = 30
+            break
+          default:
+            diasEntreCuotas = 7
+        }
+
+        // Calcular días transcurridos desde el primer pago
+        const diasTranscurridos = Math.floor((fechaHoy.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24))
+        
+        // Si aún no ha llegado la fecha del primer pago, no hay cuotas vencidas
+        if (diasTranscurridos < 0) {
+          return 0
+        }
+
+        // Paso 3: Calcular cuántas cuotas deberían haberse pagado
+        const cuotasQueDeberianEstarPagadas = Math.floor(diasTranscurridos / diasEntreCuotas) + 1
+        
+        // Las cuotas vencidas son las que deberían estar pagadas menos las que sí se pagaron
+        const cuotasVencidas = Math.max(0, cuotasQueDeberianEstarPagadas - cuotasPagadas)
+        
+        // No puede haber más cuotas vencidas que cuotas pendientes
+        const cuotasPendientes = cuotasTotales - cuotasPagadas
+        
+        return Math.min(cuotasVencidas, cuotasPendientes)
+      }
+
       // Procesar datos usando los campos directos de la tabla prestamos
       let prestamosExtendidos: PrestamoExtendido[] = (data || []).map((prestamo: any) => {
         const cuotasPagadas = prestamo.cuotas_pagadas || 0
         const cuotasTotales = prestamo.numero_cuotas
         const saldoPendiente = prestamo.saldo_pendiente || 0
+        
+        // Calcular cuotas vencidas
+        const cuotasVencidas = calcularCuotasVencidas(
+          prestamo.fecha_primer_pago,
+          prestamo.periodicidad,
+          cuotasPagadas,
+          cuotasTotales
+        )
         
         // Calcular próxima fecha de pago basado en la periodicidad y fecha del último pago
         let proximaFecha = null
@@ -117,7 +179,8 @@ export function usePrestamos(filtros?: PrestamoFiltros) {
           cuotasTotales,
           saldoPendiente,
           proximaFecha,
-          progreso
+          progreso,
+          cuotasVencidas
         }
       })
 
@@ -326,19 +389,88 @@ export function usePrestamos(filtros?: PrestamoFiltros) {
   }
 
   // Obtener estadísticas
-  const obtenerEstadisticas = async (): Promise<PrestamoEstadisticas | null> => {
+  const obtenerEstadisticas = async (filtrosEstadisticas?: PrestamoFiltros): Promise<PrestamoEstadisticas | null> => {
     try {
-      const { data: prestamosData } = await supabase
+      let query = supabase
         .from("prestamos")
-        .select("estado, monto_principal, monto_total, valor_cuota, saldo_pendiente, cuotas_pagadas, numero_cuotas")
-        .neq("estado", "E") as any // Excluir préstamos inactivados
+        .select("estado, monto_principal, monto_total, valor_cuota, saldo_pendiente, cuotas_pagadas, numero_cuotas, fecha_primer_pago, periodicidad")
+        .neq("estado", "E") // Excluir préstamos inactivados
+
+      // Aplicar filtros si existen
+      if (filtrosEstadisticas?.ruta_id) {
+        query = query.eq("ruta_id", filtrosEstadisticas.ruta_id)
+      }
+
+      if (filtrosEstadisticas?.estado) {
+        query = query.eq("estado", filtrosEstadisticas.estado)
+      }
+
+      if (filtrosEstadisticas?.fecha_desde) {
+        query = query.gte("fecha_desembolso", filtrosEstadisticas.fecha_desde)
+      }
+
+      if (filtrosEstadisticas?.fecha_hasta) {
+        query = query.lte("fecha_desembolso", filtrosEstadisticas.fecha_hasta)
+      }
+
+      const { data: prestamosData } = await query as any
 
       if (!prestamosData) return null
 
       const totalPrestamos = prestamosData.length
       const prestamosActivos = prestamosData.filter((p: any) => p.estado === "activo").length
-      const prestamosVencidos = prestamosData.filter((p: any) => p.estado === "vencido").length
+      
+      // Contar préstamos con cuotas vencidas usando la misma lógica de calcularCuotasVencidas
+      let prestamosConVencimiento = 0
+      
+      prestamosData.forEach((prestamo: any) => {
+        const cuotasPagadas = prestamo.cuotas_pagadas || 0
+        const cuotasTotales = prestamo.numero_cuotas || 0
+        
+        if (cuotasPagadas >= cuotasTotales || !prestamo.fecha_primer_pago) {
+          return
+        }
+
+        const fechaHoy = new Date()
+        const fechaInicio = new Date(prestamo.fecha_primer_pago)
+        
+        let diasEntreCuotas = 0
+        switch (prestamo.periodicidad) {
+          case 'diario':
+            diasEntreCuotas = 1
+            break
+          case 'semanal':
+            diasEntreCuotas = 7
+            break
+          case 'quincenal':
+            diasEntreCuotas = 15
+            break
+          case 'mensual':
+            diasEntreCuotas = 30
+            break
+          default:
+            diasEntreCuotas = 7
+        }
+
+        const diasTranscurridos = Math.floor((fechaHoy.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24))
+        
+        if (diasTranscurridos >= 0) {
+          const cuotasQueDeberianEstarPagadas = Math.floor(diasTranscurridos / diasEntreCuotas) + 1
+          const cuotasVencidas = Math.max(0, cuotasQueDeberianEstarPagadas - cuotasPagadas)
+          
+          if (cuotasVencidas > 0) {
+            prestamosConVencimiento++
+          }
+        }
+      })
+      
       const prestamosPagados = prestamosData.filter((p: any) => p.estado === "pagado").length
+      
+      // Calcular tasa de morosidad: préstamos vencidos / total préstamos activos (sin contar los pagados)
+      const prestamosActivosYVencidos = totalPrestamos - prestamosPagados
+      const tasaMorosidad = prestamosActivosYVencidos > 0 
+        ? (prestamosConVencimiento / prestamosActivosYVencidos) * 100 
+        : 0
       
       let carteraTotal = 0
       let saldoPendiente = 0
@@ -365,11 +497,11 @@ export function usePrestamos(filtros?: PrestamoFiltros) {
       return {
         totalPrestamos,
         prestamosActivos,
-        prestamosVencidos,
+        prestamosVencidos: prestamosConVencimiento,
         prestamosPagados,
         carteraTotal,
         saldoPendiente,
-        montoPorVencer: 0, // Ya no calculamos esto
+        tasaMorosidad,
         promedioCuota
       }
     } catch (err) {

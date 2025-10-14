@@ -8,10 +8,11 @@ interface CajaDesgloseProps {
   seguros: number
   cobrados: number
   cartera: number
+  gastos: number
 }
 
-export function CajaDesglose({ inversion, prestado, seguros, cobrados, cartera }: CajaDesgloseProps) {
-  const caja = inversion - prestado + seguros + cobrados
+export function CajaDesglose({ inversion, prestado, seguros, cobrados, cartera, gastos }: CajaDesgloseProps) {
+  const caja = inversion - prestado + seguros + cobrados - gastos
   
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-CO', {
@@ -45,6 +46,12 @@ export function CajaDesglose({ inversion, prestado, seguros, cobrados, cartera }
       value: cobrados, 
       type: 'positive',
       icon: <Plus className="w-3 h-3" />
+    },
+    { 
+      label: 'Gastos', 
+      value: gastos, 
+      type: 'negative',
+      icon: <Minus className="w-3 h-3" />
     },
   ]
 

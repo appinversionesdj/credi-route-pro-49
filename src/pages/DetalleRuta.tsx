@@ -31,7 +31,8 @@ import {
   ResponsiveContainer,
   PieChart,
   Pie,
-  Cell
+  Cell,
+  Legend
 } from "recharts"
 
 export default function DetalleRuta() {
@@ -57,6 +58,48 @@ export default function DetalleRuta() {
 
   const formatPercent = (value: number) => {
     return `${value.toFixed(1)}%`
+  }
+
+  const formatDateRange = (fechaInicio: string, fechaFin: string) => {
+    const inicio = new Date(fechaInicio)
+    const fin = new Date(fechaFin)
+    
+    const diaInicio = inicio.getDate()
+    const diaFin = fin.getDate()
+    const mesInicio = inicio.toLocaleDateString('es-CO', { month: 'short' })
+    const mesFin = fin.toLocaleDateString('es-CO', { month: 'short' })
+    
+    if (mesInicio === mesFin) {
+      return `${diaInicio} - ${diaFin} ${mesInicio}`
+    } else {
+      return `${diaInicio} ${mesInicio} - ${diaFin} ${mesFin}`
+    }
+  }
+
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload
+      return (
+        <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
+          <p className="text-sm font-semibold text-muted-foreground mb-3">
+            {formatDateRange(data.fechaInicio, data.fechaFin)}
+          </p>
+          {payload.map((entry: any, index: number) => (
+            <div key={index} className="flex items-center justify-between gap-4 mb-1">
+              <div className="flex items-center gap-2">
+                <div 
+                  className="w-3 h-3 rounded" 
+                  style={{ backgroundColor: entry.color }}
+                />
+                <span className="text-xs font-medium">{entry.name}:</span>
+              </div>
+              <span className="text-xs font-bold">{formatCurrency(entry.value)}</span>
+            </div>
+          ))}
+        </div>
+      )
+    }
+    return null
   }
 
   const getEstadoColor = (estado: string | null) => {
@@ -104,23 +147,8 @@ export default function DetalleRuta() {
     { name: 'Pagados', value: ruta.estadisticas.prestamosPagados, color: '#3B82F6' },
   ].filter(item => item.value > 0)
 
-  const datosComparacion = [
-    { 
-      nombre: 'Prestado', 
-      valor: ruta.estadisticas.totalPrestado,
-      color: 'hsl(var(--primary))'
-    },
-    { 
-      nombre: 'Cobrado', 
-      valor: ruta.estadisticas.totalCobrado,
-      color: 'hsl(var(--chart-2))'
-    },
-    { 
-      nombre: 'Cartera', 
-      valor: ruta.estadisticas.carteraTotal,
-      color: 'hsl(var(--chart-3))'
-    },
-  ]
+  // Datos de comparación por semana
+  const datosComparacion = ruta.estadisticas.datosPorSemana || []
 
   return (
     <div className="p-6 space-y-6 bg-gradient-to-br from-background to-muted/30 min-h-full">
@@ -151,10 +179,6 @@ export default function DetalleRuta() {
         </div>
         
         <div className="flex gap-3">
-          <Button variant="outline">
-            <Target className="w-4 h-4 mr-2" />
-            Ver Préstamos
-          </Button>
           <Button>
             <User className="w-4 h-4 mr-2" />
             Gestionar Cobrador
@@ -206,32 +230,38 @@ export default function DetalleRuta() {
             seguros={ruta.estadisticas.segurosRecogidos}
             cobrados={ruta.estadisticas.totalCobrado}
             cartera={ruta.estadisticas.carteraTotal}
+            gastos={ruta.estadisticas.totalGastos}
           />
         </div>
 
         {/* Gráfico de Distribución - Ocupa 2 columnas */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 flex flex-col">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Target className="w-5 h-5 text-primary" />
               Distribución Financiera
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+          <CardContent className="h-full">
+            <ResponsiveContainer width="100%" height="100%" minHeight={350}>
               <BarChart data={datosComparacion}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="nombre" />
-                <YAxis />
-                <Tooltip 
-                  formatter={(value: any) => [formatCurrency(value), ""]}
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--background))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
-                  }}
+                <XAxis 
+                  dataKey="semana" 
+                  tick={{ fontSize: 12 }}
+                  angle={-15}
+                  textAnchor="end"
+                  height={60}
                 />
-                <Bar dataKey="valor" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend 
+                  wrapperStyle={{ paddingTop: '10px' }}
+                  iconType="rect"
+                />
+                <Bar dataKey="prestado" fill="#EF4444" name="Prestado" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="cobrado" fill="#22C55E" name="Cobrado" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="gastos" fill="#F59E0B" name="Gastos" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -303,113 +333,67 @@ export default function DetalleRuta() {
           </CardContent>
         </Card>
 
-        {/* Métricas de Rendimiento */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-secondary" />
-              Métricas de Rendimiento
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Eficiencia de Cobro */}
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium flex items-center gap-2">
-                  <Percent className="w-4 h-4 text-green-600" />
-                  Eficiencia de Cobro
-                </span>
-                <span className="text-lg font-bold text-green-600">
-                  {formatPercent(ruta.estadisticas.eficienciaCobro)}
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
-                <div 
-                  className="h-3 rounded-full bg-gradient-to-r from-green-500 to-green-600 transition-all"
-                  style={{ width: `${Math.min(ruta.estadisticas.eficienciaCobro, 100)}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Rentabilidad */}
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-blue-600" />
-                  Rentabilidad
-                </span>
-                <span className="text-lg font-bold text-blue-600">
-                  {formatPercent(ruta.estadisticas.rentabilidad)}
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
-                <div 
-                  className="h-3 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all"
-                  style={{ width: `${Math.min(ruta.estadisticas.rentabilidad, 100)}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Datos adicionales */}
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-              <div className="text-center p-3 rounded-lg bg-orange-50">
-                <Shield className="w-5 h-5 text-orange-600 mx-auto mb-1" />
-                <p className="text-xs text-muted-foreground">Seguros</p>
-                <p className="text-sm font-bold text-orange-600">
-                  {formatCurrency(ruta.estadisticas.segurosRecogidos || 0)}
-                </p>
-              </div>
-              <div className="text-center p-3 rounded-lg bg-purple-50">
-                <Wallet className="w-5 h-5 text-purple-600 mx-auto mb-1" />
-                <p className="text-xs text-muted-foreground">Cuota Promedio</p>
-                <p className="text-sm font-bold text-purple-600">
-                  {formatCurrency(ruta.estadisticas.promedioCuota)}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Información del Cobrador y Clientes */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Cobrador Asignado */}
+        {/* Cobradores Asignados */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="w-5 h-5 text-primary" />
-              Cobrador Asignado
+              Cobradores Asignados
             </CardTitle>
           </CardHeader>
           <CardContent>
             {ruta.cobrador ? (
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                  <User className="w-8 h-8 text-primary" />
+              <div className="space-y-3">
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="text-left text-xs font-medium text-muted-foreground p-3">Nombre</th>
+                        <th className="text-left text-xs font-medium text-muted-foreground p-3">Teléfono</th>
+                        <th className="text-left text-xs font-medium text-muted-foreground p-3">Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-t">
+                        <td className="p-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                              <User className="w-4 h-4 text-primary" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">
+                                {ruta.cobrador.nombre} {ruta.cobrador.apellido}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <p className="text-sm text-muted-foreground">
+                            {ruta.cobrador.telefono || 'N/A'}
+                          </p>
+                        </td>
+                        <td className="p-3">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                            Activo
+                          </span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold">
-                    {ruta.cobrador.nombre} {ruta.cobrador.apellido}
-                  </h3>
-                  {ruta.cobrador.telefono && (
-                    <p className="text-sm text-muted-foreground">
-                      📞 {ruta.cobrador.telefono}
-                    </p>
-                  )}
-                  <div className="flex gap-2 mt-3">
-                    <Button size="sm" variant="outline">
-                      Ver Historial
-                    </Button>
-                    <Button size="sm" variant="outline">
-                      Contactar
-                    </Button>
-                  </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="flex-1">
+                    Cambiar Cobrador
+                  </Button>
+                  <Button size="sm" variant="outline" className="flex-1">
+                    Ver Historial
+                  </Button>
                 </div>
               </div>
             ) : (
               <div className="text-center py-8">
                 <User className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground mb-4">No hay cobrador asignado a esta ruta</p>
+                <p className="text-sm text-muted-foreground mb-4">No hay cobrador asignado</p>
                 <Button size="sm">
                   <User className="w-4 h-4 mr-2" />
                   Asignar Cobrador
@@ -418,71 +402,7 @@ export default function DetalleRuta() {
             )}
           </CardContent>
         </Card>
-
-        {/* Resumen de Clientes */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-primary" />
-              Resumen de Clientes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 rounded-lg bg-green-50 border border-green-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <CheckCircle className="w-5 h-5 text-green-600" />
-                  <span className="text-sm font-medium text-green-900">Activos</span>
-                </div>
-                <p className="text-3xl font-bold text-green-600">
-                  {ruta.estadisticas.clientesActivos}
-                </p>
-                <p className="text-xs text-green-700 mt-1">Clientes al día</p>
-              </div>
-
-              <div className="p-4 rounded-lg bg-red-50 border border-red-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <XCircle className="w-5 h-5 text-red-600" />
-                  <span className="text-sm font-medium text-red-900">Morosos</span>
-                </div>
-                <p className="text-3xl font-bold text-red-600">
-                  {ruta.estadisticas.clientesMorosos}
-                </p>
-                <p className="text-xs text-red-700 mt-1">Con pagos pendientes</p>
-              </div>
-            </div>
-
-            <div className="mt-4 p-4 rounded-lg bg-blue-50 border border-blue-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-blue-900">Total de Clientes</p>
-                  <p className="text-2xl font-bold text-blue-600">
-                    {ruta.estadisticas.clientesActivos + ruta.estadisticas.clientesMorosos}
-                  </p>
-                </div>
-                <Button size="sm" variant="outline">
-                  Ver Listado
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
-
-      {/* Descripción */}
-      {ruta.descripcion && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-primary" />
-              Información Adicional
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground leading-relaxed">{ruta.descripcion}</p>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }

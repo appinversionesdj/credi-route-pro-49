@@ -11,7 +11,8 @@ import {
   MoreHorizontal,
   User,
   Eye,
-  Archive
+  Archive,
+  AlertCircle
 } from "lucide-react"
 import { PrestamoExtendido } from "@/types/prestamo"
 
@@ -48,22 +49,42 @@ export default function PrestamoCard({ prestamo, onInactivar, onView }: Prestamo
   }
 
   const progreso = calcularProgreso(prestamo.cuotasPagadas || 0, prestamo.cuotasTotales || 0)
+  const cuotasVencidas = prestamo.cuotasVencidas || 0
+  const tieneVencimiento = cuotasVencidas > 0
 
   return (
-    <div className="hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-200 py-3 px-6" onClick={handleCardClick}>
+    <div 
+      className={`hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-200 py-3 px-6 ${
+        tieneVencimiento ? 'bg-red-50/50 hover:bg-red-50' : ''
+      }`} 
+      onClick={handleCardClick}
+    >
       <div className="grid grid-cols-12 gap-4 items-center text-sm">
         {/* Cliente */}
         <div className="col-span-3 pl-2">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-              <User className="w-3 h-3 text-primary" />
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
+              tieneVencimiento ? 'bg-red-100' : 'bg-primary/10'
+            }`}>
+              {tieneVencimiento ? (
+                <AlertCircle className="w-3 h-3 text-red-600" />
+              ) : (
+                <User className="w-3 h-3 text-primary" />
+              )}
             </div>
             <div className="min-w-0">
-              <div className="font-medium truncate">
-                {prestamo.cliente ? 
-                  `${prestamo.cliente.nombre} ${prestamo.cliente.apellido}` : 
-                  'Cliente no encontrado'
-                }
+              <div className="font-medium truncate flex items-center gap-2">
+                <span>
+                  {prestamo.cliente ? 
+                    `${prestamo.cliente.nombre} ${prestamo.cliente.apellido}` : 
+                    'Cliente no encontrado'
+                  }
+                </span>
+                {tieneVencimiento && (
+                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4">
+                    {cuotasVencidas} vencida{cuotasVencidas > 1 ? 's' : ''}
+                  </Badge>
+                )}
               </div>
               <div className="text-xs text-muted-foreground">
                 {prestamo.numero_prestamo} • CC: {prestamo.cliente?.cedula?.toLocaleString('es-CO') || 'N/A'}
@@ -101,8 +122,17 @@ export default function PrestamoCard({ prestamo, onInactivar, onView }: Prestamo
             </span>
             <span className="text-muted-foreground ml-1">cuotas</span>
           </div>
-          <div className="text-xs text-destructive font-medium">
-            {(prestamo.cuotasTotales || 0) - (prestamo.cuotasPagadas || 0)} restantes
+          <div className={`text-xs font-medium ${
+            tieneVencimiento ? 'text-red-600' : 'text-muted-foreground'
+          }`}>
+            {tieneVencimiento ? (
+              <span className="flex items-center justify-center gap-1">
+                <AlertCircle className="w-3 h-3" />
+                {cuotasVencidas} mora
+              </span>
+            ) : (
+              <span>{(prestamo.cuotasTotales || 0) - (prestamo.cuotasPagadas || 0)} restantes</span>
+            )}
           </div>
         </div>
 

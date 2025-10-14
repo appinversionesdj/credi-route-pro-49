@@ -20,6 +20,7 @@ export interface PrestamoFormData {
   periodicidad: 'diario' | 'semanal' | 'quincenal' | 'mensual' | ''
   numero_cuotas: number
   fecha_desembolso: string
+  dia_pago_semanal?: 'lunes' | 'martes' | 'miércoles' | 'jueves' | 'viernes' | 'sábado'
   observaciones?: string
 }
 
