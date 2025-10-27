@@ -12,6 +12,7 @@ import Prestamos from "./pages/Prestamos";
 import DetallePrestamo from "./pages/DetallePrestamo";
 import Rutas from "./pages/Rutas";
 import DetalleRuta from "./pages/DetalleRuta";
+import BaseDiaria from "./pages/BaseDiaria";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -37,7 +38,7 @@ const App = () => (
                     <Route path="/rutas" element={<Rutas />} />
                     <Route path="/rutas/:id" element={<DetalleRuta />} />
                     <Route path="/cobros" element={<div className="p-6">Módulo de Cobros - En desarrollo</div>} />
-                    <Route path="/base-diaria" element={<div className="p-6">Base Diaria - En desarrollo</div>} />
+                    <Route path="/base-diaria" element={<BaseDiaria />} />
                     <Route path="/reportes" element={<div className="p-6">Reportes - En desarrollo</div>} />
                     <Route path="/metricas" element={<div className="p-6">Métricas - En desarrollo</div>} />
                     <Route path="/configuracion" element={<div className="p-6">Configuración - En desarrollo</div>} />

@@ -6,6 +6,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
@@ -137,13 +138,16 @@ export type Database = {
           id: string
           justificacion_diferencia: string | null
           monto_base_entregado: number
+          nombre_persona_entrega: string | null
           observaciones_cierre: string | null
+          persona_entrega_base: string | null
           total_cobros_programados: number
           total_cobros_realizados: number
           total_gastos: number | null
           total_gastos_aprobados: number | null
           total_gastos_pendientes: number | null
           total_prestamos_nuevos: number | null
+          total_seguros: number | null
         }
         Insert: {
           base_diaria_id: string
@@ -159,13 +163,16 @@ export type Database = {
           id?: string
           justificacion_diferencia?: string | null
           monto_base_entregado: number
+          nombre_persona_entrega?: string | null
           observaciones_cierre?: string | null
+          persona_entrega_base?: string | null
           total_cobros_programados?: number
           total_cobros_realizados?: number
           total_gastos?: number | null
           total_gastos_aprobados?: number | null
           total_gastos_pendientes?: number | null
           total_prestamos_nuevos?: number | null
+          total_seguros?: number | null
         }
         Update: {
           base_diaria_id?: string
@@ -181,13 +188,16 @@ export type Database = {
           id?: string
           justificacion_diferencia?: string | null
           monto_base_entregado?: number
+          nombre_persona_entrega?: string | null
           observaciones_cierre?: string | null
+          persona_entrega_base?: string | null
           total_cobros_programados?: number
           total_cobros_realizados?: number
           total_gastos?: number | null
           total_gastos_aprobados?: number | null
           total_gastos_pendientes?: number | null
           total_prestamos_nuevos?: number | null
+          total_seguros?: number | null
         }
         Relationships: [
           {
@@ -196,6 +206,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "base_diaria_cobradores"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacion_diaria_persona_entrega_base_fkey"
+            columns: ["persona_entrega_base"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -381,6 +398,7 @@ export type Database = {
           id: string
           monto: number
           observaciones: string | null
+          ruta_id: string | null
           tipo_gasto_id: string
           ubicacion: string | null
           user_id: string | null
@@ -396,6 +414,7 @@ export type Database = {
           id?: string
           monto: number
           observaciones?: string | null
+          ruta_id?: string | null
           tipo_gasto_id: string
           ubicacion?: string | null
           user_id?: string | null
@@ -411,11 +430,19 @@ export type Database = {
           id?: string
           monto?: number
           observaciones?: string | null
+          ruta_id?: string | null
           tipo_gasto_id?: string
           ubicacion?: string | null
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "gastos_diarios_ruta_id_fkey"
+            columns: ["ruta_id"]
+            isOneToOne: false
+            referencedRelation: "rutas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "gastos_diarios_tipo_gasto_id_fkey"
             columns: ["tipo_gasto_id"]
@@ -501,6 +528,9 @@ export type Database = {
       }
       pagos_recibidos: {
         Row: {
+          eliminado_por: string | null
+          estado: string | null
+          fecha_eliminacion: string | null
           fecha_pago: string | null
           foto_comprobante_url: string | null
           hora_pago: string | null
@@ -512,6 +542,9 @@ export type Database = {
           tipo_pago: string | null
         }
         Insert: {
+          eliminado_por?: string | null
+          estado?: string | null
+          fecha_eliminacion?: string | null
           fecha_pago?: string | null
           foto_comprobante_url?: string | null
           hora_pago?: string | null
@@ -523,6 +556,9 @@ export type Database = {
           tipo_pago?: string | null
         }
         Update: {
+          eliminado_por?: string | null
+          estado?: string | null
+          fecha_eliminacion?: string | null
           fecha_pago?: string | null
           foto_comprobante_url?: string | null
           hora_pago?: string | null
@@ -534,6 +570,13 @@ export type Database = {
           tipo_pago?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "pagos_recibidos_eliminado_por_fkey"
+            columns: ["eliminado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["user_id"]
+          },
           {
             foreignKeyName: "pagos_recibidos_prestamo_id_fkey"
             columns: ["prestamo_id"]
@@ -555,6 +598,7 @@ export type Database = {
           creado_por: string | null
           cuotas_pagadas: number | null
           deudor_id: string
+          dia_pago_semanal: string | null
           estado: string | null
           fecha_actualizacion: string | null
           fecha_creacion: string | null
@@ -568,6 +612,7 @@ export type Database = {
           numero_cuotas: number
           numero_prestamo: string
           observaciones: string | null
+          orden_ruta: number | null
           periodicidad: string
           ruta_id: string
           saldo_pendiente: number
@@ -579,6 +624,7 @@ export type Database = {
           creado_por?: string | null
           cuotas_pagadas?: number | null
           deudor_id: string
+          dia_pago_semanal?: string | null
           estado?: string | null
           fecha_actualizacion?: string | null
           fecha_creacion?: string | null
@@ -592,6 +638,7 @@ export type Database = {
           numero_cuotas: number
           numero_prestamo: string
           observaciones?: string | null
+          orden_ruta?: number | null
           periodicidad: string
           ruta_id: string
           saldo_pendiente?: number
@@ -603,6 +650,7 @@ export type Database = {
           creado_por?: string | null
           cuotas_pagadas?: number | null
           deudor_id?: string
+          dia_pago_semanal?: string | null
           estado?: string | null
           fecha_actualizacion?: string | null
           fecha_creacion?: string | null
@@ -616,6 +664,7 @@ export type Database = {
           numero_cuotas?: number
           numero_prestamo?: string
           observaciones?: string | null
+          orden_ruta?: number | null
           periodicidad?: string
           ruta_id?: string
           saldo_pendiente?: number
@@ -851,6 +900,32 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calcular_cuotas_esperadas: {
+        Args: {
+          p_fecha_primer_pago: string
+          p_numero_cuotas: number
+          p_periodicidad: string
+        }
+        Returns: number
+      }
+      calcular_cuotas_vencidas: {
+        Args: {
+          p_cuotas_pagadas: number
+          p_fecha_primer_pago: string
+          p_numero_cuotas: number
+          p_periodicidad: string
+        }
+        Returns: number
+      }
+      esta_moroso: {
+        Args: {
+          p_cuotas_pagadas: number
+          p_fecha_primer_pago: string
+          p_numero_cuotas: number
+          p_periodicidad: string
+        }
+        Returns: boolean
+      }
       generar_cronograma_pagos: {
         Args: {
           fecha_primer_pago_param: string
@@ -863,22 +938,19 @@ export type Database = {
         }
         Returns: undefined
       }
-      generate_loan_number: {
-        Args: { empresa_id_param: string }
+      generate_loan_number_by_route: {
+        Args: { ruta_id_param: string }
         Returns: string
       }
       get_cobrador_rutas: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           ruta_id: string
         }[]
       }
-      get_user_empresa_id: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      get_user_empresa_id: { Args: never; Returns: string }
       get_user_profile: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           empresa_id: string
           estado: string
@@ -887,7 +959,7 @@ export type Database = {
         }[]
       }
       get_user_routes: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           descripcion: string
           empresa_id: string
@@ -895,10 +967,7 @@ export type Database = {
           nombre_ruta: string
         }[]
       }
-      is_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      is_admin: { Args: never; Returns: boolean }
       test_rls_as_user: {
         Args: { test_user_id: string }
         Returns: {
