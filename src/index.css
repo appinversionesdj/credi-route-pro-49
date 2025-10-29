@@ -2,58 +2,74 @@
 @tailwind components;
 @tailwind utilities;
 
-/* CREDITFLOW Design System - Financial Microloans Platform
-All colors MUST be HSL.
+/* ============================================================
+   CREDITFLOW - PALETA DE COLORES PERSONALIZADA
+   
+   Para cambiar los colores de toda la aplicación, 
+   modifica los valores hexadecimales en esta sección.
+   ============================================================ */
+
+/*
+  COLORES PRINCIPALES (Cambiar estos valores para personalizar):
+  
+  Primary:   #2D3748  (Azul grisáceo oscuro para encabezados)
+  Secondary: #4A5568  (Variante más clara)
+  Accent:    #4FD1C5  (Verde-Azul Turquesa - color distintivo)
 */
 
 @layer base {
   :root {
-    /* CREDITFLOW Brand Colors - Nueva Paleta */
-    --background: 0 0% 97%; /* #F7F7F7 */
-    --foreground: 200 16% 22%; /* #2D3941 - Primary Dark para texto principal */
+    /* ============================================================
+       VALORES HSL CALCULADOS DE LA PALETA
+       (Se calculan automáticamente desde los colores hexadecimales)
+       ============================================================ */
+    
+    --background: 0 0% 97%;
+    --foreground: 211 20% 24%; /* #2D3748 - Primary */
 
     --card: 0 0% 100%;
-    --card-foreground: 200 16% 22%; /* #2D3941 */
+    --card-foreground: 211 20% 24%; /* #2D3748 */
 
     --popover: 0 0% 100%;
-    --popover-foreground: 200 16% 22%; /* #2D3941 */
+    --popover-foreground: 211 20% 24%; /* #2D3748 */
 
-    /* Primary: Primary Dark */
-    --primary: 200 16% 22%; /* #2D3941 */
+    /* Primary: #2D3748 (Azul grisáceo oscuro) */
+    --primary: 211 20% 24%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 200 16% 85%;
-    --primary-dark: 200 16% 15%;
+    --primary-light: 211 20% 85%;
+    --primary-dark: 211 20% 15%;
 
-    /* Secondary: Secondary Accent */
-    --secondary: 175 24% 45%; /* #5C8C88 */
+    /* Secondary: #4A5568 (Gris azulado) */
+    --secondary: 214 13% 35%;
     --secondary-foreground: 0 0% 100%;
-    --secondary-light: 175 24% 85%;
+    --secondary-light: 214 13% 85%;
 
-    /* Success: Verde éxito (mantener para consistencia) */
+    /* Accent: #4FD1C5 (Verde-Azul Turquesa) */
+    --accent: 174 62% 57%;
+    --accent-foreground: 211 20% 24%;
+
+    /* Success: Verde para estados positivos */
     --success: 122 39% 49%;
     --success-foreground: 0 0% 100%;
     --success-light: 122 39% 95%;
 
-    /* Warning: Highlight/CTA */
-    --warning: 20 60% 63%; /* #D98C64 */
+    /* Warning: Amarillo/Naranja para advertencias */
+    --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
-    --warning-light: 20 60% 95%;
+    --warning-light: 38 92% 95%;
 
-    /* Error: Rojo error (mantener para consistencia) */
+    /* Destructive: Rojo para errores */
     --destructive: 4 90% 58%;
     --destructive-foreground: 0 0% 100%;
     --destructive-light: 4 90% 95%;
 
     /* Neutral colors */
     --muted: 0 0% 96%;
-    --muted-foreground: 200 16% 35%; /* Más oscuro para mejor legibilidad */
-
-    --accent: 175 24% 96%; /* Secondary Accent light */
-    --accent-foreground: 200 16% 22%; /* Primary Dark */
+    --muted-foreground: 214 13% 40%;
 
     --border: 0 0% 91%;
     --input: 0 0% 100%;
-    --ring: 200 16% 22%; /* Primary Dark */
+    --ring: 174 62% 57%; /* Accent color */
 
     --radius: 0.5rem;
 
@@ -73,68 +89,75 @@ All colors MUST be HSL.
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
-    /* Sidebar colors for CREDITFLOW - Nueva Paleta */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 200 16% 22%; /* Primary Dark */
-    --sidebar-primary: 200 16% 22%; /* Primary Dark */
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 175 24% 96%; /* Secondary Accent light */
-    --sidebar-accent-foreground: 200 16% 22%; /* Primary Dark */
-    --sidebar-border: 0 0% 91%;
-    --sidebar-ring: 200 16% 22%; /* Primary Dark */
+    /* Sidebar colors - Usa la paleta personalizada */
+    --sidebar-background: 211 20% 24%; /* Primary #2D3748 */
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 174 62% 57%; /* Accent #4FD1C5 */
+    --sidebar-primary-foreground: 211 20% 24%;
+    --sidebar-accent: 214 13% 35%; /* Secondary #4A5568 */
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 211 20% 30%;
+    --sidebar-ring: 174 62% 57%; /* Accent */
   }
 
   .dark {
-    /* CREDITFLOW Dark Mode - Nueva Paleta */
-    --background: 200 16% 9%; /* Primary Dark más oscuro */
+    /* ============================================================
+       MODO OSCURO - Basado en la paleta personalizada
+       ============================================================ */
+    
+    --background: 211 20% 10%; /* Primary oscuro */
     --foreground: 0 0% 95%;
 
-    --card: 200 16% 11%;
+    --card: 211 20% 12%;
     --card-foreground: 0 0% 95%;
 
-    --popover: 200 16% 11%;
+    --popover: 211 20% 12%;
     --popover-foreground: 0 0% 95%;
 
-    --primary: 175 24% 60%; /* Secondary Accent más claro */
-    --primary-foreground: 200 16% 9%;
-    --primary-light: 175 24% 25%;
-    --primary-dark: 175 24% 45%;
+    /* Primary más claro en modo oscuro */
+    --primary: 174 62% 60%; /* Accent más brillante */
+    --primary-foreground: 211 20% 10%;
+    --primary-light: 174 62% 70%;
+    --primary-dark: 174 62% 45%;
 
-    --secondary: 20 60% 70%; /* Highlight/CTA más claro */
-    --secondary-foreground: 200 16% 9%;
-    --secondary-light: 20 60% 25%;
+    /* Secondary más claro */
+    --secondary: 214 13% 50%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-light: 214 13% 60%;
 
+    /* Accent más brillante */
+    --accent: 174 62% 65%;
+    --accent-foreground: 211 20% 10%;
+
+    /* Estados en modo oscuro */
     --success: 122 39% 60%;
-    --success-foreground: 200 16% 9%;
-    --success-light: 122 39% 15%;
+    --success-foreground: 211 20% 10%;
+    --success-light: 122 39% 20%;
 
-    --warning: 20 60% 70%; /* Highlight/CTA */
-    --warning-foreground: 200 16% 9%;
-    --warning-light: 20 60% 15%;
+    --warning: 38 92% 60%;
+    --warning-foreground: 211 20% 10%;
+    --warning-light: 38 92% 20%;
 
     --destructive: 4 90% 65%;
-    --destructive-foreground: 200 16% 9%;
-    --destructive-light: 4 90% 15%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-light: 4 90% 20%;
 
-    --muted: 200 16% 15%;
+    --muted: 211 20% 18%;
     --muted-foreground: 0 0% 70%;
 
-    --accent: 175 24% 15%;
-    --accent-foreground: 175 24% 85%;
+    --border: 211 20% 25%;
+    --input: 211 20% 20%;
+    --ring: 174 62% 60%;
 
-    --border: 200 16% 20%;
-    --input: 200 16% 20%;
-    --ring: 175 24% 60%;
-
-    /* Sidebar dark mode */
-    --sidebar-background: 200 16% 9%;
+    /* Sidebar en modo oscuro */
+    --sidebar-background: 211 20% 10%;
     --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 175 24% 60%;
-    --sidebar-primary-foreground: 200 16% 9%;
-    --sidebar-accent: 175 24% 15%;
-    --sidebar-accent-foreground: 175 24% 85%;
-    --sidebar-border: 200 16% 20%;
-    --sidebar-ring: 175 24% 60%;
+    --sidebar-primary: 174 62% 60%;
+    --sidebar-primary-foreground: 211 20% 10%;
+    --sidebar-accent: 214 13% 30%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 211 20% 25%;
+    --sidebar-ring: 174 62% 60%;
   }
 }
 

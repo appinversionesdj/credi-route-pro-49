@@ -5,6 +5,8 @@ export interface PaginationState {
   itemsPerPage: number
   totalItems: number
   totalPages: number
+  from: number
+  to: number
 }
 
 export interface PaginationControls {
@@ -73,13 +75,18 @@ export function usePagination<T>(
     }
   }, [data, currentPage, totalPages])
 
+  const from = (currentPage - 1) * itemsPerPage + 1
+  const to = Math.min(currentPage * itemsPerPage, totalItems)
+
   return {
     paginatedData,
     pagination: {
       currentPage,
       itemsPerPage,
       totalItems,
-      totalPages
+      totalPages,
+      from,
+      to
     },
     controls: {
       goToPage,

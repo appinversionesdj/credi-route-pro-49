@@ -14,6 +14,13 @@ export default {
     },
     extend: {
       colors: {
+        // Colores personalizados del sistema
+        brand: {
+          primary: "#2D3748",      // Azul grisáceo oscuro para encabezados
+          secondary: "#4A5568",    // Variante más clara
+          accent: "#4FD1C5",       // Verde-Azul Turquesa
+        },
+        // Colores del sistema de diseño
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

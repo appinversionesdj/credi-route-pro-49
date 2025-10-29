@@ -33,10 +33,10 @@ import { Button } from "@/components/ui/button"
 
 const navigationItems = [
   {
-    title: "Dashboard",
+    title: "Base Diaria",
     url: "/",
-    icon: LayoutDashboard,
-    description: "Vista general"
+    icon: Calculator,
+    description: "Turnos y conciliación"
   },
   {
     title: "Clientes",
@@ -61,16 +61,16 @@ const navigationItems = [
     url: "/cobros",
     icon: Wallet,
     description: "Pagos y cobranza"
-  },
-  {
-    title: "Base Diaria",
-    url: "/base-diaria",
-    icon: Calculator,
-    description: "Turnos y conciliación"
   }
 ]
 
 const reportItems = [
+  {
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: LayoutDashboard,
+    description: "Vista general"
+  },
   {
     title: "Reportes",
     url: "/reportes",
@@ -95,7 +95,7 @@ export function AppSidebar() {
     if (path === "/") {
       return currentPath === "/"
     }
-    return currentPath.startsWith(path)
+    return currentPath === path || currentPath.startsWith(path + "/")
   }
 
   const getNavClass = (path: string) => {

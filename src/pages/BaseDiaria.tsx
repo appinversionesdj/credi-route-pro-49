@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -29,8 +30,12 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Skeleton } from '@/components/ui/skeleton'
+import { DataTable, DataTableColumn } from '@/components/ui/data-table'
+import { DataTableRow, DataTableCell } from '@/components/ui/data-table-row'
 import { supabase } from '@/integrations/supabase/client'
 import { useRutas } from '@/hooks/useRutas'
+import { usePagination, type PaginationState } from '@/hooks/usePagination'
 import { 
   Calendar,
   Search,
@@ -42,11 +47,14 @@ import {
   CheckCircle2,
   AlertCircle,
   Info,
-  User
+  User,
+  Pencil,
+  Check
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 
 interface MovimientoDiario {
+  id: string
   fecha: string
   cobrador_id: string
   cobrador_nombre: string
@@ -64,6 +72,7 @@ interface MovimientoDiario {
 }
 
 export default function BaseDiaria() {
+  const navigate = useNavigate()
   const [movimientos, setMovimientos] = useState<MovimientoDiario[]>([])
   const [loading, setLoading] = useState(true)
   const [fechaDesde, setFechaDesde] = useState('')
@@ -71,14 +80,6 @@ export default function BaseDiaria() {
   const [cobradorFiltro, setCobradorFiltro] = useState('')
   const [rutaFiltro, setRutaFiltro] = useState('')
   const [cobradores, setCobradores] = useState<Array<{ id: string; nombre: string; apellido: string }>>([])
-  const [dialogConciliar, setDialogConciliar] = useState(false)
-  const [movimientoSeleccionado, setMovimientoSeleccionado] = useState<MovimientoDiario | null>(null)
-  const [dineroDevuelto, setDineroDevuelto] = useState('')
-  const [personaEntrega, setPersonaEntrega] = useState('')
-  const [observaciones, setObservaciones] = useState('')
-  const [usuarios, setUsuarios] = useState<Array<{ id: string; nombre: string; apellido: string }>>([])
-  const [paginaActual, setPaginaActual] = useState(1)
-  const itemsPorPagina = 3
   const [fechaSeleccionada, setFechaSeleccionada] = useState<string | null>(null)
   const [prestamosDetalle, setPrestamosDetalle] = useState<any[]>([])
   const [cobrosDetalle, setCobrosDetalle] = useState<any[]>([])
@@ -88,8 +89,13 @@ export default function BaseDiaria() {
   const [paginaCobros, setPaginaCobros] = useState(1)
   const [paginaGastos, setPaginaGastos] = useState(1)
   const itemsPorPaginaDetalle = 5
+  const [fechaResaltada, setFechaResaltada] = useState<string | null>(null)
+  const scrollPositionRef = useRef<number>(0)
 
   const { rutas } = useRutas()
+  
+  // Paginación con hook personalizado
+  const { paginatedData: movimientosPaginados, pagination, controls } = usePagination(movimientos, 5)
 
   // Establecer últimos 30 días por defecto
   useEffect(() => {
@@ -118,21 +124,6 @@ export default function BaseDiaria() {
     cargarCobradores()
   }, [])
 
-  // Cargar usuarios para selector de persona que entrega
-  useEffect(() => {
-    async function cargarUsuarios() {
-      const { data } = await supabase
-        .from('usuarios')
-        .select('user_id, nombre, apellido')
-        .eq('estado', 'activo')
-        .order('nombre')
-
-      if (data) {
-        setUsuarios(data.map(u => ({ id: u.user_id, nombre: u.nombre, apellido: u.apellido })))
-      }
-    }
-    cargarUsuarios()
-  }, [])
 
   // Cargar movimientos diarios
   const cargarMovimientos = async () => {
@@ -225,27 +216,30 @@ export default function BaseDiaria() {
       
       const movimientosConConciliacion = await Promise.all(
         movimientosArray.map(async (mov) => {
-          // Buscar si existe conciliación para esta fecha
+          // Buscar si existe conciliación para esta fecha directamente
           const { data: conciliaciones } = await supabase
             .from('conciliacion_diaria')
-            .select(`
-              id,
-              dinero_efectivamente_devuelto,
-              diferencia,
-              monto_base_entregado,
-              base_diaria:base_diaria_cobradores!inner(fecha)
-            `)
-            .eq('base_diaria.fecha', mov.fecha)
+            .select('id, dinero_efectivamente_devuelto, diferencia, monto_base_entregado')
+            .eq('fecha', mov.fecha)
 
           // Si hay conciliaciones, obtener base y dinero devuelto
           const baseEntregada = conciliaciones?.reduce((sum, c) => sum + Number(c.monto_base_entregado || 0), 0) || 0
           const dineroDevuelto = conciliaciones?.reduce((sum, c) => sum + Number(c.dinero_efectivamente_devuelto || 0), 0) || 0
-          const totalDiferencia = conciliaciones?.reduce((sum, c) => sum + Number(c.diferencia || 0), 0) || 0
 
           const dineroTeorico = baseEntregada + mov.total_cobrado + mov.total_seguros - mov.total_prestado - mov.total_gastos
           const hayConciliacion = conciliaciones && conciliaciones.length > 0
 
+          // Calcular diferencia: Base + Cobros + Seguros - Prestado - Gastos - Devuelto
+          const diferenciaCalculada = baseEntregada + mov.total_cobrado + mov.total_seguros - mov.total_prestado - mov.total_gastos - dineroDevuelto
+
+          // El estado depende de la diferencia calculada
+          let estado: 'conciliado' | 'pendiente' = 'pendiente'
+          if (hayConciliacion) {
+            estado = 'conciliado'
+          }
+
           return {
+            id: mov.fecha, // Usar la fecha como ID único
             fecha: mov.fecha,
             cobrador_id: '',
             cobrador_nombre: 'Todos',
@@ -257,8 +251,8 @@ export default function BaseDiaria() {
             total_seguros: mov.total_seguros,
             total_gastos: mov.total_gastos,
             dinero_teorico: dineroTeorico,
-            diferencia: totalDiferencia,
-            estado: (hayConciliacion ? 'conciliado' : 'pendiente') as 'conciliado' | 'pendiente',
+            diferencia: diferenciaCalculada,
+            estado: estado,
             conciliacion_id: conciliaciones?.[0]?.id
           }
         })
@@ -271,7 +265,9 @@ export default function BaseDiaria() {
       
       // Cargar detalle del primer día automáticamente
       if (movimientosConConciliacion.length > 0 && !fechaSeleccionada) {
-        cargarDetalleMovimientos(movimientosConConciliacion[0].fecha)
+        const primeraFecha = movimientosConConciliacion[0].fecha
+        cargarDetalleMovimientos(primeraFecha)
+        setFechaResaltada(primeraFecha)
       }
     } catch (error) {
       console.error('Error al cargar movimientos:', error)
@@ -291,130 +287,12 @@ export default function BaseDiaria() {
     }
   }, [fechaDesde, fechaHasta, cobradorFiltro, rutaFiltro])
 
-  const handleConciliar = (movimiento: MovimientoDiario) => {
-    setMovimientoSeleccionado(movimiento)
-    setDineroDevuelto('')
-    setPersonaEntrega('')
-    setObservaciones('')
-    setDialogConciliar(true)
-  }
-
-  const guardarConciliacion = async () => {
-    if (!movimientoSeleccionado || !dineroDevuelto) {
-      toast({
-        title: 'Error',
-        description: 'Debe ingresar el dinero devuelto',
-        variant: 'destructive'
-      })
-      return
-    }
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Usuario no autenticado')
-
-      const montoDevuelto = parseFloat(dineroDevuelto)
-      
-      // Recalcular dinero teórico considerando la base ingresada
-      const baseEntregada = movimientoSeleccionado.base_entregada > 0 
-        ? movimientoSeleccionado.base_entregada 
-        : montoDevuelto - movimientoSeleccionado.total_cobrado - movimientoSeleccionado.total_seguros + movimientoSeleccionado.total_prestado + movimientoSeleccionado.total_gastos
-      
-      const dineroTeorico = baseEntregada + movimientoSeleccionado.total_cobrado + movimientoSeleccionado.total_seguros - movimientoSeleccionado.total_prestado - movimientoSeleccionado.total_gastos
-      const diferencia = montoDevuelto - dineroTeorico
-
-      let estadoConciliacion: 'cuadrado' | 'sobrante' | 'faltante' | 'auditoria' = 'cuadrado'
-      if (diferencia > 0) {
-        estadoConciliacion = 'sobrante'
-      } else if (diferencia < 0) {
-        estadoConciliacion = 'faltante'
-      }
-
-      if (Math.abs(diferencia) > 50000) {
-        estadoConciliacion = 'auditoria'
-      }
-
-      const personaEntregaData = usuarios.find(u => u.id === personaEntrega)
-
-      // Buscar o crear base_diaria_cobradores
-      let { data: baseDiaria } = await supabase
-        .from('base_diaria_cobradores')
-        .select('id')
-        .eq('fecha', movimientoSeleccionado.fecha)
-        .eq('cobrador_id', movimientoSeleccionado.cobrador_id)
-        .eq('ruta_id', movimientoSeleccionado.ruta_id)
-        .maybeSingle()
-
-      let baseDiariaId: string
-
-      if (!baseDiaria) {
-        // Crear base diaria si no existe
-        const { data: nuevaBase, error: errorBase } = await supabase
-          .from('base_diaria_cobradores')
-          .insert({
-            fecha: movimientoSeleccionado.fecha,
-            cobrador_id: movimientoSeleccionado.cobrador_id,
-            ruta_id: movimientoSeleccionado.ruta_id,
-            monto_base_entregado: baseEntregada,
-            monto_devuelto: montoDevuelto,
-            estado: 'conciliado'
-          })
-          .select('id')
-          .single()
-
-        if (errorBase) throw errorBase
-        baseDiariaId = nuevaBase.id
-      } else {
-        // Actualizar base diaria existente
-        await supabase
-          .from('base_diaria_cobradores')
-          .update({ 
-            monto_base_entregado: baseEntregada,
-            monto_devuelto: montoDevuelto,
-            estado: 'conciliado'
-          })
-          .eq('id', baseDiaria.id)
-        
-        baseDiariaId = baseDiaria.id
-      }
-
-      // Guardar conciliación
-      const { error } = await supabase
-        .from('conciliacion_diaria')
-        .insert({
-          base_diaria_id: baseDiariaId,
-          monto_base_entregado: baseEntregada,
-          total_cobros_realizados: movimientoSeleccionado.total_cobrado,
-          total_prestamos_nuevos: movimientoSeleccionado.total_prestado,
-          total_gastos_aprobados: movimientoSeleccionado.total_gastos,
-          total_seguros: movimientoSeleccionado.total_seguros,
-          dinero_efectivamente_devuelto: montoDevuelto,
-          dinero_teorico_devolver: dineroTeorico,
-          diferencia: diferencia,
-          estado_conciliacion: estadoConciliacion,
-          observaciones_cierre: observaciones,
-          persona_entrega_base: personaEntrega || null,
-          nombre_persona_entrega: personaEntregaData ? `${personaEntregaData.nombre} ${personaEntregaData.apellido}` : null,
-          conciliado_por: user.id
-        })
-
-      if (error) throw error
-
-      toast({
-        title: 'Éxito',
-        description: 'Conciliación guardada correctamente'
-      })
-
-      setDialogConciliar(false)
-      cargarMovimientos()
-    } catch (error) {
-      console.error('Error al guardar conciliación:', error)
-      toast({
-        title: 'Error',
-        description: 'No se pudo guardar la conciliación',
-        variant: 'destructive'
-      })
-    }
+  // Manejar selección de fecha
+  const handleSeleccionarFecha = (fecha: string) => {
+    // Guardar la posición actual del scroll
+    scrollPositionRef.current = window.scrollY
+    setFechaResaltada(fecha)
+    cargarDetalleMovimientos(fecha)
   }
 
   // Cargar detalle de movimientos por fecha
@@ -493,6 +371,13 @@ export default function BaseDiaria() {
       })
     } finally {
       setLoadingDetalle(false)
+      // Restaurar la posición del scroll después de un breve delay
+      setTimeout(() => {
+        window.scrollTo({
+          top: scrollPositionRef.current,
+          behavior: 'instant'
+        })
+      }, 0)
     }
   }
 
@@ -541,11 +426,98 @@ export default function BaseDiaria() {
     }
   }
 
-  // Paginación
-  const totalPaginas = Math.ceil(movimientos.length / itemsPorPagina)
-  const indexInicio = (paginaActual - 1) * itemsPorPagina
-  const indexFin = indexInicio + itemsPorPagina
-  const movimientosPaginados = movimientos.slice(indexInicio, indexFin)
+  // Componente Skeleton para tabla de préstamos
+  const SkeletonPrestamos = () => (
+    <div className="space-y-0 min-h-[400px] border rounded-md overflow-hidden">
+      {/* Encabezados */}
+      <div className="grid grid-cols-12 gap-4 items-center text-xs font-bold text-gray-900 bg-gray-100 px-6 py-3 border-b-2 border-gray-300">
+        <div className="col-span-2 pl-2">No. Préstamo</div>
+        <div className="col-span-2">Cliente</div>
+        <div className="col-span-2">Cobrador</div>
+        <div className="col-span-1">Ruta</div>
+        <div className="col-span-1 text-right pr-2">Prestado</div>
+        <div className="col-span-1 text-right pr-2">Seguro</div>
+        <div className="col-span-1 text-center">Cuotas</div>
+        <div className="col-span-2 text-center">Fecha Desembolso</div>
+      </div>
+      
+      {/* Filas skeleton */}
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="grid grid-cols-12 gap-4 items-center px-6 py-4 border-b">
+          <div className="col-span-2 pl-2"><Skeleton className="h-5 w-24" /></div>
+          <div className="col-span-2 space-y-1">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+          <div className="col-span-2"><Skeleton className="h-4 w-28" /></div>
+          <div className="col-span-1"><Skeleton className="h-4 w-16" /></div>
+          <div className="col-span-1 flex justify-end pr-2"><Skeleton className="h-4 w-20" /></div>
+          <div className="col-span-1 flex justify-end pr-2"><Skeleton className="h-4 w-16" /></div>
+          <div className="col-span-1 flex justify-center"><Skeleton className="h-4 w-8" /></div>
+          <div className="col-span-2 flex justify-center"><Skeleton className="h-4 w-24" /></div>
+        </div>
+      ))}
+    </div>
+  )
+
+  // Componente Skeleton para tabla de cobros
+  const SkeletonCobros = () => (
+    <div className="space-y-0 min-h-[400px] border rounded-md overflow-hidden">
+      {/* Encabezados */}
+      <div className="grid grid-cols-12 gap-4 items-center text-xs font-bold text-gray-900 bg-gray-100 px-6 py-3 border-b-2 border-gray-300">
+        <div className="col-span-2 pl-2">No. Préstamo</div>
+        <div className="col-span-2">Cliente</div>
+        <div className="col-span-2">Cobrador</div>
+        <div className="col-span-2 text-right pr-2">Valor Cobrado</div>
+        <div className="col-span-2 text-center">Fecha Cobro</div>
+        <div className="col-span-2 text-center">Hora Cobro</div>
+      </div>
+      
+      {/* Filas skeleton */}
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="grid grid-cols-12 gap-4 items-center px-6 py-4 border-b">
+          <div className="col-span-2 pl-2"><Skeleton className="h-5 w-24" /></div>
+          <div className="col-span-2"><Skeleton className="h-4 w-32" /></div>
+          <div className="col-span-2"><Skeleton className="h-4 w-28" /></div>
+          <div className="col-span-2 flex justify-end pr-2"><Skeleton className="h-4 w-20" /></div>
+          <div className="col-span-2 flex justify-center"><Skeleton className="h-4 w-24" /></div>
+          <div className="col-span-2 flex justify-center"><Skeleton className="h-4 w-16" /></div>
+        </div>
+      ))}
+    </div>
+  )
+
+  // Componente Skeleton para tabla de gastos
+  const SkeletonGastos = () => (
+    <div className="overflow-x-auto min-h-[400px]">
+      <Table className="border">
+        <TableHeader>
+          <TableRow className="bg-gray-100 hover:bg-gray-100 border-b-2 border-gray-300">
+            <TableHead className="font-bold text-gray-900">Cobrador</TableHead>
+            <TableHead className="font-bold text-gray-900">Ruta</TableHead>
+            <TableHead className="font-bold text-gray-900">Descripción</TableHead>
+            <TableHead className="font-bold text-gray-900">Categoría</TableHead>
+            <TableHead className="text-right font-bold text-gray-900">Monto</TableHead>
+            <TableHead className="font-bold text-gray-900">Estado</TableHead>
+            <TableHead className="font-bold text-gray-900">Hora</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <TableRow key={i}>
+              <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+              <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+              <TableCell className="text-right"><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
+              <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  )
 
   const totales = movimientos.reduce((acc, mov) => ({
     base: acc.base + mov.base_entregada,
@@ -557,10 +529,73 @@ export default function BaseDiaria() {
     diferencia: acc.diferencia + mov.diferencia
   }), { base: 0, prestado: 0, cobrado: 0, seguros: 0, gastos: 0, teorico: 0, diferencia: 0 })
 
-  // Resetear a página 1 cuando cambian los datos
-  useEffect(() => {
-    setPaginaActual(1)
-  }, [movimientos.length])
+  // Definir columnas para la tabla
+  const columnasMovimientos: DataTableColumn<MovimientoDiario>[] = [
+    { key: 'fecha', header: 'Fecha', className: 'font-bold text-gray-900' },
+    { key: 'prestado', header: 'Prestado', className: 'text-right font-bold text-gray-900' },
+    { key: 'cobrado', header: 'Cobrado', className: 'text-right font-bold text-gray-900' },
+    { key: 'seguros', header: 'Seguros', className: 'text-right font-bold text-gray-900' },
+    { key: 'gastos', header: 'Gastos', className: 'text-right font-bold text-gray-900' },
+    { key: 'base', header: 'Base', className: 'text-right font-bold text-gray-900' },
+    { key: 'diferencia', header: 'Diferencia', className: 'text-right font-bold text-gray-900' },
+    { key: 'estado', header: 'Estado', className: 'text-center font-bold text-gray-900' },
+  ]
+
+  // Renderizar cada fila de movimiento
+  const renderMovimientoRow = (mov: MovimientoDiario) => (
+    <DataTableRow
+      gridCols="grid-cols-8"
+      className={`cursor-pointer transition-all ${
+        fechaResaltada === mov.fecha 
+          ? 'bg-blue-50 hover:bg-blue-100'
+          : ''
+      }`}
+      onClick={() => handleSeleccionarFecha(mov.fecha)}
+    >
+      <DataTableCell 
+        className="font-medium text-sm text-blue-600 hover:text-blue-800 hover:underline"
+      >
+        <div onClick={(e) => {
+          e.stopPropagation()
+          navigate(`/base-diaria/${mov.fecha}`)
+        }}>
+          {formatDate(mov.fecha)}
+        </div>
+      </DataTableCell>
+      
+      <DataTableCell className="text-right text-sm text-red-600">
+        -{formatCurrency(mov.total_prestado)}
+      </DataTableCell>
+      
+      <DataTableCell className="text-right text-sm text-green-600">
+        +{formatCurrency(mov.total_cobrado)}
+      </DataTableCell>
+      
+      <DataTableCell className="text-right text-sm text-green-600">
+        +{formatCurrency(mov.total_seguros)}
+      </DataTableCell>
+      
+      <DataTableCell className="text-right text-sm text-red-600">
+        -{formatCurrency(mov.total_gastos)}
+      </DataTableCell>
+      
+      <DataTableCell className="text-right text-sm">
+        {formatCurrency(mov.base_entregada)}
+      </DataTableCell>
+      
+      <DataTableCell className={`text-right text-sm font-bold ${
+        mov.diferencia === 0 ? 'text-green-600' :
+        mov.diferencia > 0 ? 'text-blue-600' :
+        'text-red-600'
+      }`}>
+        {formatCurrency(mov.diferencia)}
+      </DataTableCell>
+      
+      <DataTableCell className="text-center text-sm">
+        {getEstadoBadge(mov.estado, mov.diferencia)}
+      </DataTableCell>
+    </DataTableRow>
+  )
 
   // Paginación de préstamos
   const totalPaginasPrestamos = Math.ceil(prestamosDetalle.length / itemsPorPaginaDetalle)
@@ -603,146 +638,36 @@ export default function BaseDiaria() {
         </p>
       </div>
 
-      {/* Tabla de movimientos */}
-      <Card>
-        <CardContent className="pt-6">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
-          ) : movimientos.length === 0 ? (
-            <div className="text-center py-12">
-              <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No hay movimientos</h3>
-              <p className="text-muted-foreground">
-                No se encontraron movimientos para el rango de fechas seleccionado
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                 <TableHeader>
-                   <TableRow>
-                     <TableHead>Fecha</TableHead>
-                     <TableHead className="text-right">Prestado</TableHead>
-                     <TableHead className="text-right">Cobrado</TableHead>
-                     <TableHead className="text-right">Seguros</TableHead>
-                     <TableHead className="text-right">Gastos</TableHead>
-                     <TableHead className="text-right">Base</TableHead>
-                     <TableHead className="text-right">Teórico</TableHead>
-                     <TableHead className="text-center">Estado</TableHead>
-                     <TableHead className="text-right">Diferencia</TableHead>
-                     <TableHead className="text-center">Acción</TableHead>
-                   </TableRow>
-                 </TableHeader>
-                 <TableBody>
-                   {movimientosPaginados.map((mov, index) => (
-                     <TableRow 
-                       key={index}
-                       className={`cursor-pointer hover:bg-muted/50 ${fechaSeleccionada === mov.fecha ? 'bg-blue-50' : ''}`}
-                       onClick={() => cargarDetalleMovimientos(mov.fecha)}
-                     >
-                       <TableCell className="font-medium">{formatDate(mov.fecha)}</TableCell>
-                       <TableCell className="text-right text-red-600">-{formatCurrency(mov.total_prestado)}</TableCell>
-                       <TableCell className="text-right text-green-600">+{formatCurrency(mov.total_cobrado)}</TableCell>
-                       <TableCell className="text-right text-green-600">+{formatCurrency(mov.total_seguros)}</TableCell>
-                       <TableCell className="text-right text-red-600">-{formatCurrency(mov.total_gastos)}</TableCell>
-                       <TableCell className="text-right">{formatCurrency(mov.base_entregada)}</TableCell>
-                       <TableCell className="text-right font-semibold">{formatCurrency(mov.dinero_teorico)}</TableCell>
-                       <TableCell className="text-center">{getEstadoBadge(mov.estado, mov.diferencia)}</TableCell>
-                       <TableCell className={`text-right font-bold ${
-                         mov.diferencia === 0 ? 'text-green-600' :
-                         mov.diferencia > 0 ? 'text-blue-600' : 'text-red-600'
-                       }`}>
-                         {mov.estado === 'conciliado' ? (
-                           <>
-                             {mov.diferencia > 0 && '+'}
-                             {formatCurrency(mov.diferencia)}
-                           </>
-                         ) : '-'}
-                       </TableCell>
-                       <TableCell className="text-center">
-                         {mov.estado === 'pendiente' ? (
-                           <Button
-                             size="sm"
-                             onClick={(e) => {
-                               e.stopPropagation()
-                               handleConciliar(mov)
-                             }}
-                           >
-                             Conciliar
-                           </Button>
-                         ) : (
-                           <Badge variant="outline" className="bg-green-50">
-                             <CheckCircle2 className="w-3 h-3 mr-1" />
-                             Conciliado
-                           </Badge>
-                         )}
-                       </TableCell>
-                     </TableRow>
-                   ))}
-                 </TableBody>
-              </Table>
-
-              {/* Controles de paginación */}
-              {totalPaginas > 1 && (
-                <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                  <div className="text-sm text-muted-foreground">
-                    Mostrando {indexInicio + 1} a {Math.min(indexFin, movimientos.length)} de {movimientos.length} días
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPaginaActual(p => Math.max(1, p - 1))}
-                      disabled={paginaActual === 1}
-                    >
-                      Anterior
-                    </Button>
-                    <div className="flex items-center gap-1">
-                      {(() => {
-                        const maxPaginasVisibles = 3
-                        let inicio = Math.max(1, paginaActual - Math.floor(maxPaginasVisibles / 2))
-                        let fin = Math.min(totalPaginas, inicio + maxPaginasVisibles - 1)
-                        
-                        // Ajustar inicio si estamos cerca del final
-                        if (fin - inicio + 1 < maxPaginasVisibles) {
-                          inicio = Math.max(1, fin - maxPaginasVisibles + 1)
-                        }
-                        
-                        return Array.from({ length: fin - inicio + 1 }, (_, i) => inicio + i).map((pagina) => (
-                          <Button
-                            key={pagina}
-                            variant={pagina === paginaActual ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setPaginaActual(pagina)}
-                            className="w-8 h-8 p-0"
-                          >
-                            {pagina}
-                          </Button>
-                        ))
-                      })()}
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPaginaActual(p => Math.min(totalPaginas, p + 1))}
-                      disabled={paginaActual === totalPaginas}
-                    >
-                      Siguiente
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Tabla de movimientos con componente genérico */}
+      <DataTable
+        columns={columnasMovimientos}
+        data={movimientosPaginados}
+        loading={loading}
+        error={null}
+        emptyMessage="No hay movimientos"
+        emptyDescription="No se encontraron movimientos para el rango de fechas seleccionado"
+        renderRow={renderMovimientoRow}
+        pagination={pagination}
+        paginationControls={controls}
+        showPagination={true}
+        itemsPerPageOptions={[5, 10, 20, 30]}
+        gridCols="grid-cols-8"
+        showHeader={true}
+      />
 
       {/* Detalle de movimientos por tabs */}
       {fechaSeleccionada && (
         <Card>
-          <CardContent className="pt-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-blue-600" />
+              Detalle de Movimientos - {formatDate(fechaSeleccionada)}
+            </CardTitle>
+            <CardDescription>
+              Préstamos, cobros y gastos registrados en esta fecha
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6 min-h-[500px]">
             <Tabs defaultValue="prestamos" className="w-full">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="prestamos">
@@ -759,17 +684,15 @@ export default function BaseDiaria() {
               {/* Tab de Préstamos y Seguros */}
               <TabsContent value="prestamos">
                 {loadingDetalle ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                  </div>
+                  <SkeletonPrestamos />
                 ) : prestamosDetalle.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
+                  <div className="text-center py-12 text-muted-foreground min-h-[400px]">
                     No hay préstamos registrados para esta fecha
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-0 min-h-[400px] border rounded-md overflow-hidden">
                     {/* Encabezados de la tabla */}
-                    <div className="grid grid-cols-12 gap-4 items-center text-xs font-medium text-muted-foreground bg-gray-50 px-6 py-3 border-b">
+                    <div className="grid grid-cols-12 gap-4 items-center text-xs font-bold text-gray-900 bg-gray-100 px-6 py-3 border-b-2 border-gray-300">
                       <div className="col-span-2 pl-2">No. Préstamo</div>
                       <div className="col-span-2">Cliente</div>
                       <div className="col-span-2">Cobrador</div>
@@ -781,11 +704,14 @@ export default function BaseDiaria() {
                     </div>
                     
                     {/* Filas de préstamos */}
-                    <div>
+                    <div className="bg-white">
                       {prestamosPaginados.map((prestamo) => (
-                        <div key={prestamo.id} className="grid grid-cols-12 gap-4 items-center px-6 py-4 border-b hover:bg-gray-50">
+                        <div key={prestamo.id} className="grid grid-cols-12 gap-4 items-center px-6 py-4 border-b hover:bg-gray-50 transition-colors">
                           <div className="col-span-2 pl-2">
-                            <div className="text-sm font-mono text-blue-600">
+                            <div 
+                              className="text-sm font-mono text-blue-600 hover:underline cursor-pointer"
+                              onClick={() => navigate(`/prestamos/${prestamo.id}`)}
+                            >
                               {prestamo.numero_prestamo || 'N/A'}
                             </div>
                           </div>
@@ -877,17 +803,15 @@ export default function BaseDiaria() {
               {/* Tab de Cobros */}
               <TabsContent value="cobros">
                 {loadingDetalle ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                  </div>
+                  <SkeletonCobros />
                 ) : cobrosDetalle.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
+                  <div className="text-center py-12 text-muted-foreground min-h-[400px]">
                     No hay cobros registrados para esta fecha
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-0 min-h-[400px] border rounded-md overflow-hidden">
                     {/* Encabezados de la tabla */}
-                    <div className="grid grid-cols-12 gap-4 items-center text-xs font-medium text-muted-foreground bg-gray-50 px-6 py-3 border-b">
+                    <div className="grid grid-cols-12 gap-4 items-center text-xs font-bold text-gray-900 bg-gray-100 px-6 py-3 border-b-2 border-gray-300">
                       <div className="col-span-2 pl-2">No. Préstamo</div>
                       <div className="col-span-2">Cliente</div>
                       <div className="col-span-2">Cobrador</div>
@@ -897,11 +821,14 @@ export default function BaseDiaria() {
                     </div>
                     
                     {/* Filas de cobros */}
-                    <div>
+                    <div className="bg-white">
                       {cobrosPaginados.map((cobro) => (
-                        <div key={cobro.id} className="grid grid-cols-12 gap-4 items-center px-6 py-4 border-b hover:bg-gray-50">
+                        <div key={cobro.id} className="grid grid-cols-12 gap-4 items-center px-6 py-4 border-b hover:bg-gray-50 transition-colors">
                           <div className="col-span-2 pl-2">
-                            <div className="text-sm font-mono text-blue-600">
+                            <div 
+                              className="text-sm font-mono text-blue-600 hover:underline cursor-pointer"
+                              onClick={() => cobro.prestamo_id && navigate(`/prestamos/${cobro.prestamo_id}`)}
+                            >
                               {cobro.prestamo?.numero_prestamo || 'N/A'}
                             </div>
                           </div>
@@ -984,30 +911,28 @@ export default function BaseDiaria() {
               {/* Tab de Gastos */}
               <TabsContent value="gastos">
                 {loadingDetalle ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                  </div>
+                  <SkeletonGastos />
                 ) : gastosDetalle.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
+                  <div className="text-center py-12 text-muted-foreground min-h-[400px]">
                     No hay gastos registrados para esta fecha
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
+                  <div className="overflow-x-auto min-h-[400px]">
+                    <Table className="border">
                       <TableHeader>
-                        <TableRow>
-                          <TableHead>Cobrador</TableHead>
-                          <TableHead>Ruta</TableHead>
-                          <TableHead>Descripción</TableHead>
-                          <TableHead>Categoría</TableHead>
-                          <TableHead className="text-right">Monto</TableHead>
-                          <TableHead>Estado</TableHead>
-                          <TableHead>Hora</TableHead>
+                        <TableRow className="bg-gray-100 hover:bg-gray-100 border-b-2 border-gray-300">
+                          <TableHead className="font-bold text-gray-900">Cobrador</TableHead>
+                          <TableHead className="font-bold text-gray-900">Ruta</TableHead>
+                          <TableHead className="font-bold text-gray-900">Descripción</TableHead>
+                          <TableHead className="font-bold text-gray-900">Categoría</TableHead>
+                          <TableHead className="text-right font-bold text-gray-900">Monto</TableHead>
+                          <TableHead className="font-bold text-gray-900">Estado</TableHead>
+                          <TableHead className="font-bold text-gray-900">Hora</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {gastosDetalle.map((gasto) => (
-                          <TableRow key={gasto.id}>
+                          <TableRow key={gasto.id} className="hover:bg-gray-50 transition-colors">
                             <TableCell className="font-medium">
                               {gasto.cobrador?.nombre} {gasto.cobrador?.apellido}
                             </TableCell>
@@ -1041,139 +966,6 @@ export default function BaseDiaria() {
           </CardContent>
         </Card>
       )}
-
-      {/* Dialog de conciliación */}
-      <Dialog open={dialogConciliar} onOpenChange={setDialogConciliar}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
-              Conciliar Base Diaria
-            </DialogTitle>
-            <DialogDescription>
-              {movimientoSeleccionado && (
-                <>
-                  {formatDate(movimientoSeleccionado.fecha)} - {movimientoSeleccionado.cobrador_nombre} - {movimientoSeleccionado.ruta_nombre}
-                </>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-
-          {movimientoSeleccionado && (
-            <div className="space-y-4">
-              {/* Resumen de movimientos */}
-              <Card className="bg-blue-50 border-blue-200">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm">Resumen del Día</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>Base Entregada:</span>
-                    <span className="font-semibold">{formatCurrency(movimientoSeleccionado.base_entregada)}</span>
-                  </div>
-                  <div className="flex justify-between text-green-700">
-                    <span>+ Cobros:</span>
-                    <span className="font-semibold">{formatCurrency(movimientoSeleccionado.total_cobrado)}</span>
-                  </div>
-                  <div className="flex justify-between text-green-700">
-                    <span>+ Seguros:</span>
-                    <span className="font-semibold">{formatCurrency(movimientoSeleccionado.total_seguros)}</span>
-                  </div>
-                  <div className="flex justify-between text-red-700">
-                    <span>- Préstamos:</span>
-                    <span className="font-semibold">{formatCurrency(movimientoSeleccionado.total_prestado)}</span>
-                  </div>
-                  <div className="flex justify-between text-red-700">
-                    <span>- Gastos:</span>
-                    <span className="font-semibold">{formatCurrency(movimientoSeleccionado.total_gastos)}</span>
-                  </div>
-                  <div className="border-t pt-2 flex justify-between text-base">
-                    <span className="font-bold">Teórico a Devolver:</span>
-                    <span className="font-bold text-blue-700">{formatCurrency(movimientoSeleccionado.dinero_teorico)}</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Formulario */}
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="dinero-devuelto">Dinero Efectivamente Devuelto *</Label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="dinero-devuelto"
-                      type="number"
-                      step="0.01"
-                      value={dineroDevuelto}
-                      onChange={(e) => setDineroDevuelto(e.target.value)}
-                      placeholder="0"
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="persona-entrega">Persona que Entrega la Base</Label>
-                  <Select value={personaEntrega} onValueChange={setPersonaEntrega}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar persona" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {usuarios.map((usuario) => (
-                        <SelectItem key={usuario.id} value={usuario.id}>
-                          {usuario.nombre} {usuario.apellido}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="observaciones">Observaciones</Label>
-                  <Input
-                    id="observaciones"
-                    value={observaciones}
-                    onChange={(e) => setObservaciones(e.target.value)}
-                    placeholder="Observaciones sobre la conciliación..."
-                  />
-                </div>
-
-                {/* Resultado */}
-                {dineroDevuelto && (
-                  <Alert className={
-                    parseFloat(dineroDevuelto) - movimientoSeleccionado.dinero_teorico === 0
-                      ? 'bg-green-50 border-green-200'
-                      : parseFloat(dineroDevuelto) - movimientoSeleccionado.dinero_teorico > 0
-                      ? 'bg-blue-50 border-blue-200'
-                      : 'bg-red-50 border-red-200'
-                  }>
-                    <Info className="h-4 w-4" />
-                    <AlertDescription>
-                      <strong>Diferencia: </strong>
-                      <span className="font-bold">
-                        {parseFloat(dineroDevuelto) - movimientoSeleccionado.dinero_teorico > 0 && '+'}
-                        {formatCurrency(parseFloat(dineroDevuelto) - movimientoSeleccionado.dinero_teorico)}
-                      </span>
-                      {parseFloat(dineroDevuelto) - movimientoSeleccionado.dinero_teorico === 0 && ' - ¡Conciliación cuadrada!'}
-                      {parseFloat(dineroDevuelto) - movimientoSeleccionado.dinero_teorico > 0 && ' - Hay sobrante'}
-                      {parseFloat(dineroDevuelto) - movimientoSeleccionado.dinero_teorico < 0 && ' - Falta dinero'}
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </div>
-
-              <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => setDialogConciliar(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={guardarConciliacion} disabled={!dineroDevuelto}>
-                  Guardar Conciliación
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

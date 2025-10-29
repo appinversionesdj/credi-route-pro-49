@@ -6,7 +6,6 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
@@ -125,87 +124,88 @@ export type Database = {
       }
       conciliacion_diaria: {
         Row: {
-          base_diaria_id: string
-          cantidad_cobros_realizados: number | null
-          cantidad_gastos: number | null
-          cantidad_prestamos_nuevos: number | null
+          base_diaria_id: string | null
+          cobrador_id: string
           conciliado_por: string | null
+          created_at: string | null
           diferencia: number | null
           dinero_efectivamente_devuelto: number | null
           dinero_teorico_devolver: number | null
           estado_conciliacion: string | null
+          fecha: string
           fecha_conciliacion: string | null
           id: string
-          justificacion_diferencia: string | null
           monto_base_entregado: number
           nombre_persona_entrega: string | null
           observaciones_cierre: string | null
           persona_entrega_base: string | null
-          total_cobros_programados: number
-          total_cobros_realizados: number
-          total_gastos: number | null
+          ruta_id: string
+          total_cobros_realizados: number | null
           total_gastos_aprobados: number | null
-          total_gastos_pendientes: number | null
           total_prestamos_nuevos: number | null
           total_seguros: number | null
+          updated_at: string | null
         }
         Insert: {
-          base_diaria_id: string
-          cantidad_cobros_realizados?: number | null
-          cantidad_gastos?: number | null
-          cantidad_prestamos_nuevos?: number | null
+          base_diaria_id?: string | null
+          cobrador_id: string
           conciliado_por?: string | null
+          created_at?: string | null
           diferencia?: number | null
           dinero_efectivamente_devuelto?: number | null
           dinero_teorico_devolver?: number | null
           estado_conciliacion?: string | null
+          fecha: string
           fecha_conciliacion?: string | null
           id?: string
-          justificacion_diferencia?: string | null
-          monto_base_entregado: number
-          nombre_persona_entrega?: string | null
-          observaciones_cierre?: string | null
-          persona_entrega_base?: string | null
-          total_cobros_programados?: number
-          total_cobros_realizados?: number
-          total_gastos?: number | null
-          total_gastos_aprobados?: number | null
-          total_gastos_pendientes?: number | null
-          total_prestamos_nuevos?: number | null
-          total_seguros?: number | null
-        }
-        Update: {
-          base_diaria_id?: string
-          cantidad_cobros_realizados?: number | null
-          cantidad_gastos?: number | null
-          cantidad_prestamos_nuevos?: number | null
-          conciliado_por?: string | null
-          diferencia?: number | null
-          dinero_efectivamente_devuelto?: number | null
-          dinero_teorico_devolver?: number | null
-          estado_conciliacion?: string | null
-          fecha_conciliacion?: string | null
-          id?: string
-          justificacion_diferencia?: string | null
           monto_base_entregado?: number
           nombre_persona_entrega?: string | null
           observaciones_cierre?: string | null
           persona_entrega_base?: string | null
-          total_cobros_programados?: number
-          total_cobros_realizados?: number
-          total_gastos?: number | null
+          ruta_id: string
+          total_cobros_realizados?: number | null
           total_gastos_aprobados?: number | null
-          total_gastos_pendientes?: number | null
           total_prestamos_nuevos?: number | null
           total_seguros?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          base_diaria_id?: string | null
+          cobrador_id?: string
+          conciliado_por?: string | null
+          created_at?: string | null
+          diferencia?: number | null
+          dinero_efectivamente_devuelto?: number | null
+          dinero_teorico_devolver?: number | null
+          estado_conciliacion?: string | null
+          fecha?: string
+          fecha_conciliacion?: string | null
+          id?: string
+          monto_base_entregado?: number
+          nombre_persona_entrega?: string | null
+          observaciones_cierre?: string | null
+          persona_entrega_base?: string | null
+          ruta_id?: string
+          total_cobros_realizados?: number | null
+          total_gastos_aprobados?: number | null
+          total_prestamos_nuevos?: number | null
+          total_seguros?: number | null
+          updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "conciliacion_diaria_base_diaria_id_fkey"
-            columns: ["base_diaria_id"]
-            isOneToOne: true
-            referencedRelation: "base_diaria_cobradores"
-            referencedColumns: ["id"]
+            foreignKeyName: "conciliacion_diaria_cobrador_id_fkey"
+            columns: ["cobrador_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "conciliacion_diaria_conciliado_por_fkey"
+            columns: ["conciliado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "conciliacion_diaria_persona_entrega_base_fkey"
@@ -214,63 +214,11 @@ export type Database = {
             referencedRelation: "usuarios"
             referencedColumns: ["user_id"]
           },
-        ]
-      }
-      cronograma_pagos: {
-        Row: {
-          estado: string | null
-          fecha_actualizacion: string | null
-          fecha_creacion: string
-          fecha_pago: string | null
-          fecha_vencimiento: string
-          id: string
-          numero_cuota: number
-          observaciones_pago: string | null
-          prestamo_id: string
-          saldo_pendiente: number
-          valor_capital: number
-          valor_cuota: number
-          valor_interes: number
-          valor_pagado: number | null
-        }
-        Insert: {
-          estado?: string | null
-          fecha_actualizacion?: string | null
-          fecha_creacion?: string
-          fecha_pago?: string | null
-          fecha_vencimiento: string
-          id?: string
-          numero_cuota: number
-          observaciones_pago?: string | null
-          prestamo_id: string
-          saldo_pendiente: number
-          valor_capital: number
-          valor_cuota: number
-          valor_interes: number
-          valor_pagado?: number | null
-        }
-        Update: {
-          estado?: string | null
-          fecha_actualizacion?: string | null
-          fecha_creacion?: string
-          fecha_pago?: string | null
-          fecha_vencimiento?: string
-          id?: string
-          numero_cuota?: number
-          observaciones_pago?: string | null
-          prestamo_id?: string
-          saldo_pendiente?: number
-          valor_capital?: number
-          valor_cuota?: number
-          valor_interes?: number
-          valor_pagado?: number | null
-        }
-        Relationships: [
           {
-            foreignKeyName: "cronograma_pagos_prestamo_id_fkey"
-            columns: ["prestamo_id"]
+            foreignKeyName: "conciliacion_diaria_ruta_id_fkey"
+            columns: ["ruta_id"]
             isOneToOne: false
-            referencedRelation: "prestamos"
+            referencedRelation: "rutas"
             referencedColumns: ["id"]
           },
         ]
@@ -456,73 +404,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["user_id"]
-          },
-        ]
-      }
-      pagos: {
-        Row: {
-          creado_por: string | null
-          created_at: string | null
-          empresa_id: string | null
-          fecha_creacion: string | null
-          fecha_pago: string
-          id: string
-          metodo_pago: string
-          monto: number
-          observaciones: string | null
-          prestamo_id: string
-          recibo_numero: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          creado_por?: string | null
-          created_at?: string | null
-          empresa_id?: string | null
-          fecha_creacion?: string | null
-          fecha_pago: string
-          id?: string
-          metodo_pago: string
-          monto: number
-          observaciones?: string | null
-          prestamo_id: string
-          recibo_numero?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          creado_por?: string | null
-          created_at?: string | null
-          empresa_id?: string | null
-          fecha_creacion?: string | null
-          fecha_pago?: string
-          id?: string
-          metodo_pago?: string
-          monto?: number
-          observaciones?: string | null
-          prestamo_id?: string
-          recibo_numero?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "pagos_creado_por_fkey"
-            columns: ["creado_por"]
-            isOneToOne: false
-            referencedRelation: "usuarios"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "pagos_empresa_id_fkey"
-            columns: ["empresa_id"]
-            isOneToOne: false
-            referencedRelation: "empresas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "pagos_prestamo_id_fkey"
-            columns: ["prestamo_id"]
-            isOneToOne: false
-            referencedRelation: "prestamos"
-            referencedColumns: ["id"]
           },
         ]
       }

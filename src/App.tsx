@@ -13,6 +13,7 @@ import DetallePrestamo from "./pages/DetallePrestamo";
 import Rutas from "./pages/Rutas";
 import DetalleRuta from "./pages/DetalleRuta";
 import BaseDiaria from "./pages/BaseDiaria";
+import ConciliacionDia from "./pages/ConciliacionDia";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -31,7 +32,8 @@ const App = () => (
               <ProtectedRoute>
                 <AppLayout>
                   <Routes>
-                    <Route path="/" element={<Dashboard />} />
+                    <Route path="/" element={<BaseDiaria />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/clientes" element={<Clientes />} />
                     <Route path="/prestamos" element={<Prestamos />} />
                     <Route path="/prestamos/:id" element={<DetallePrestamo />} />
@@ -39,6 +41,7 @@ const App = () => (
                     <Route path="/rutas/:id" element={<DetalleRuta />} />
                     <Route path="/cobros" element={<div className="p-6">Módulo de Cobros - En desarrollo</div>} />
                     <Route path="/base-diaria" element={<BaseDiaria />} />
+                    <Route path="/base-diaria/:fecha" element={<ConciliacionDia />} />
                     <Route path="/reportes" element={<div className="p-6">Reportes - En desarrollo</div>} />
                     <Route path="/metricas" element={<div className="p-6">Métricas - En desarrollo</div>} />
                     <Route path="/configuracion" element={<div className="p-6">Configuración - En desarrollo</div>} />
