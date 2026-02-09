@@ -30,6 +30,7 @@ export interface RutaExtendida extends Ruta {
 
 export interface DatosSemana {
   semana: string
+  invertido: number
   prestado: number
   cobrado: number
   gastos: number

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { supabase, testSupabaseConnection } from "@/integrations/supabase/client"
 import { 
   Ruta, 
@@ -174,6 +174,13 @@ export function useRutas(filtros?: RutaFiltros) {
         .eq("ruta_id", rutaId)
         .gte("fecha_gasto", fechaInicio.toISOString().split('T')[0])
 
+      // Obtener inversiones por fecha_inversion
+      const { data: inversionesData } = await (supabase as any)
+        .from("inversiones_ruta")
+        .select("monto, fecha_inversion")
+        .eq("ruta_id", rutaId)
+        .gte("fecha_inversion", fechaInicio.toISOString().split('T')[0])
+
       // Función para obtener número de semana
       const obtenerNumeroSemana = (fecha: Date) => {
         const inicioAnio = new Date(fecha.getFullYear(), 0, 1)
@@ -189,7 +196,7 @@ export function useRutas(filtros?: RutaFiltros) {
       }
 
       // Agrupar datos por semana
-      const semanas = new Map<string, { prestado: number, cobrado: number, gastos: number, fechaInicio: Date, fechaFin: Date }>()
+      const semanas = new Map<string, { invertido: number, prestado: number, cobrado: number, gastos: number, fechaInicio: Date, fechaFin: Date }>()
 
       // Inicializar últimas 6 semanas
       for (let i = 5; i >= 0; i--) {
@@ -199,19 +206,32 @@ export function useRutas(filtros?: RutaFiltros) {
         // Calcular inicio y fin de la semana (lunes a domingo)
         const diaSemana = fecha.getDay()
         const diff = fecha.getDate() - diaSemana + (diaSemana === 0 ? -6 : 1)
-        const fechaInicio = new Date(fecha.setDate(diff))
-        const fechaFin = new Date(fechaInicio)
-        fechaFin.setDate(fechaInicio.getDate() + 6)
+        const fechaInicioSem = new Date(fecha.setDate(diff))
+        const fechaFinSem = new Date(fechaInicioSem)
+        fechaFinSem.setDate(fechaInicioSem.getDate() + 6)
         
         const label = obtenerLabelSemana(new Date(fecha))
         semanas.set(label, { 
+          invertido: 0,
           prestado: 0, 
           cobrado: 0, 
           gastos: 0,
-          fechaInicio: new Date(fechaInicio),
-          fechaFin: new Date(fechaFin)
+          fechaInicio: new Date(fechaInicioSem),
+          fechaFin: new Date(fechaFinSem)
         })
       }
+
+      // Agrupar inversiones
+      inversionesData?.forEach((inv: { monto: number; fecha_inversion: string }) => {
+        if (inv.fecha_inversion) {
+          const fecha = new Date(inv.fecha_inversion)
+          const label = obtenerLabelSemana(fecha)
+          const semanaData = semanas.get(label)
+          if (semanaData) {
+            semanaData.invertido += Number(inv.monto) || 0
+          }
+        }
+      })
 
       // Agrupar préstamos
       prestamosData?.forEach((prestamo: any) => {
@@ -250,6 +270,7 @@ export function useRutas(filtros?: RutaFiltros) {
       // Convertir a array
       return Array.from(semanas.entries()).map(([semana, datos]) => ({
         semana,
+        invertido: datos.invertido,
         prestado: datos.prestado,
         cobrado: datos.cobrado,
         gastos: datos.gastos,
@@ -570,80 +591,76 @@ export function useRuta(id: string) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const fetchRuta = async () => {
-      try {
-        setLoading(true)
-        setError(null)
+  const fetchRuta = useCallback(async () => {
+    if (!id) return
+    try {
+      setLoading(true)
+      setError(null)
 
-        const { data, error: fetchError } = await supabase
-          .from("rutas")
-          .select("*")
-          .eq("id", id)
-          .single()
+      const { data, error: fetchError } = await supabase
+        .from("rutas")
+        .select("*")
+        .eq("id", id)
+        .single()
 
-        if (fetchError) throw fetchError
+      if (fetchError) throw fetchError
 
-        // Obtener cobrador asignado
-        const { data: cobradorData } = await supabase
-          .from("cobrador_ruta")
-          .select(`
-            usuarios!cobrador_ruta_cobrador_id_fkey (
-              id,
-              nombre,
-              apellido,
-              telefono
-            )
-          `)
-          .eq("ruta_id", id)
-          .eq("estado", "activo")
-          .maybeSingle()
+      const { data: cobradorData } = await supabase
+        .from("cobrador_ruta")
+        .select(`
+          usuarios!cobrador_ruta_cobrador_id_fkey (
+            id,
+            nombre,
+            apellido,
+            telefono
+          )
+        `)
+        .eq("ruta_id", id)
+        .eq("estado", "activo")
+        .maybeSingle()
 
-        // Obtener estadísticas
-        const estadisticas = await obtenerEstadisticasRuta(id)
+      const estadisticas = await obtenerEstadisticasRuta(id)
 
-        // Obtener base diaria más reciente
-        const { data: baseDiariaData } = await supabase
-          .from("base_diaria_cobradores")
-          .select("*")
-          .eq("ruta_id", id)
-          .order("fecha", { ascending: false })
-          .limit(1)
-          .maybeSingle()
+      const { data: baseDiariaData } = await supabase
+        .from("base_diaria_cobradores")
+        .select("*")
+        .eq("ruta_id", id)
+        .order("fecha", { ascending: false })
+        .limit(1)
+        .maybeSingle()
 
-        const rutaExtendida: RutaExtendida = {
-          ...data,
-          cobrador: cobradorData?.usuarios ? {
-            id: cobradorData.usuarios.id,
-            nombre: cobradorData.usuarios.nombre,
-            apellido: cobradorData.usuarios.apellido,
-            telefono: cobradorData.usuarios.telefono
-          } : undefined,
-          estadisticas,
-          baseDiaria: baseDiariaData ? {
-            id: baseDiariaData.id,
-            fecha: baseDiariaData.fecha,
-            monto_base_entregado: baseDiariaData.monto_base_entregado,
-            monto_devuelto: baseDiariaData.monto_devuelto,
-            estado: baseDiariaData.estado
-          } : undefined
-        }
-
-        setRuta(rutaExtendida)
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "Error al cargar ruta"
-        setError(errorMessage)
-      } finally {
-        setLoading(false)
+      const rutaExtendida: RutaExtendida = {
+        ...data,
+        cobrador: cobradorData?.usuarios ? {
+          id: cobradorData.usuarios.id,
+          nombre: cobradorData.usuarios.nombre,
+          apellido: cobradorData.usuarios.apellido,
+          telefono: cobradorData.usuarios.telefono
+        } : undefined,
+        estadisticas,
+        baseDiaria: baseDiariaData ? {
+          id: baseDiariaData.id,
+          fecha: baseDiariaData.fecha,
+          monto_base_entregado: baseDiariaData.monto_base_entregado,
+          monto_devuelto: baseDiariaData.monto_devuelto,
+          estado: baseDiariaData.estado
+        } : undefined
       }
-    }
 
-    if (id) {
-      fetchRuta()
+      setRuta(rutaExtendida)
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Error al cargar ruta"
+      setError(errorMessage)
+    } finally {
+      setLoading(false)
     }
   }, [id])
 
-  return { ruta, loading, error }
+  useEffect(() => {
+    fetchRuta()
+  }, [fetchRuta])
+
+  return { ruta, loading, error, refetch: fetchRuta }
 }
 
 // Función auxiliar para calcular datos por semana (reutilizada)
@@ -676,6 +693,13 @@ async function calcularDatosPorSemana(rutaId: string): Promise<DatosSemana[]> {
       .eq("ruta_id", rutaId)
       .gte("fecha_gasto", fechaInicio.toISOString().split('T')[0])
 
+    // Obtener inversiones por fecha_inversion
+    const { data: inversionesData } = await (supabase as any)
+      .from("inversiones_ruta")
+      .select("monto, fecha_inversion")
+      .eq("ruta_id", rutaId)
+      .gte("fecha_inversion", fechaInicio.toISOString().split('T')[0])
+
     // Función para obtener número de semana
     const obtenerNumeroSemana = (fecha: Date) => {
       const inicioAnio = new Date(fecha.getFullYear(), 0, 1)
@@ -691,7 +715,7 @@ async function calcularDatosPorSemana(rutaId: string): Promise<DatosSemana[]> {
     }
 
     // Agrupar datos por semana
-    const semanas = new Map<string, { prestado: number, cobrado: number, gastos: number, fechaInicio: Date, fechaFin: Date }>()
+    const semanas = new Map<string, { invertido: number, prestado: number, cobrado: number, gastos: number, fechaInicio: Date, fechaFin: Date }>()
 
     // Inicializar últimas 6 semanas
     for (let i = 5; i >= 0; i--) {
@@ -701,19 +725,32 @@ async function calcularDatosPorSemana(rutaId: string): Promise<DatosSemana[]> {
       // Calcular inicio y fin de la semana (lunes a domingo)
       const diaSemana = fecha.getDay()
       const diff = fecha.getDate() - diaSemana + (diaSemana === 0 ? -6 : 1)
-      const fechaInicio = new Date(fecha.setDate(diff))
-      const fechaFin = new Date(fechaInicio)
-      fechaFin.setDate(fechaInicio.getDate() + 6)
+      const fechaInicioSem = new Date(fecha.setDate(diff))
+      const fechaFinSem = new Date(fechaInicioSem)
+      fechaFinSem.setDate(fechaInicioSem.getDate() + 6)
       
       const label = obtenerLabelSemana(new Date(fecha))
       semanas.set(label, { 
+        invertido: 0,
         prestado: 0, 
         cobrado: 0, 
         gastos: 0,
-        fechaInicio: new Date(fechaInicio),
-        fechaFin: new Date(fechaFin)
+        fechaInicio: new Date(fechaInicioSem),
+        fechaFin: new Date(fechaFinSem)
       })
     }
+
+    // Agrupar inversiones
+    inversionesData?.forEach((inv: { monto: number; fecha_inversion: string }) => {
+      if (inv.fecha_inversion) {
+        const fecha = new Date(inv.fecha_inversion)
+        const label = obtenerLabelSemana(fecha)
+        const semanaData = semanas.get(label)
+        if (semanaData) {
+          semanaData.invertido += Number(inv.monto) || 0
+        }
+      }
+    })
 
     // Agrupar préstamos
     prestamosData?.forEach((prestamo: any) => {
@@ -752,6 +789,7 @@ async function calcularDatosPorSemana(rutaId: string): Promise<DatosSemana[]> {
     // Convertir a array
     return Array.from(semanas.entries()).map(([semana, datos]) => ({
       semana,
+      invertido: datos.invertido,
       prestado: datos.prestado,
       cobrado: datos.cobrado,
       gastos: datos.gastos,

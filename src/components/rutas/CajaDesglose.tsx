@@ -9,9 +9,11 @@ interface CajaDesgloseProps {
   cobrados: number
   cartera: number
   gastos: number
+  /** Al hacer clic en el valor de Inversión se abre el listado de inversiones */
+  onInversionClick?: () => void
 }
 
-export function CajaDesglose({ inversion, prestado, seguros, cobrados, cartera, gastos }: CajaDesgloseProps) {
+export function CajaDesglose({ inversion, prestado, seguros, cobrados, cartera, gastos, onInversionClick }: CajaDesgloseProps) {
   const caja = inversion - prestado + seguros + cobrados - gastos
   
   const formatCurrency = (amount: number) => {
@@ -66,41 +68,49 @@ export function CajaDesglose({ inversion, prestado, seguros, cobrados, cartera, 
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-4 space-y-3">
-        {items.map((item, index) => (
-          <div 
-            key={index} 
-            className={cn(
-              "flex items-center justify-between py-2 border-b last:border-b-0",
-              index === 0 && "pb-3 border-b-2"
-            )}
-          >
-            <div className="flex items-center gap-2">
-              {item.icon && (
-                <div className={cn(
-                  "w-5 h-5 rounded flex items-center justify-center",
-                  item.type === 'positive' && "bg-green-100 text-green-600",
-                  item.type === 'negative' && "bg-red-100 text-red-600"
-                )}>
-                  {item.icon}
-                </div>
+        {items.map((item, index) => {
+          const isInversionClickable = index === 0 && onInversionClick
+          const row = (
+            <div
+              key={index}
+              role={isInversionClickable ? "button" : undefined}
+              onClick={isInversionClickable ? onInversionClick : undefined}
+              className={cn(
+                "flex items-center justify-between py-2 border-b last:border-b-0",
+                index === 0 && "pb-3 border-b-2",
+                isInversionClickable && "cursor-pointer hover:bg-muted/50 rounded-md px-1 -mx-1 transition-colors"
               )}
+            >
+              <div className="flex items-center gap-2">
+                {item.icon && (
+                  <div className={cn(
+                    "w-5 h-5 rounded flex items-center justify-center",
+                    item.type === 'positive' && "bg-green-100 text-green-600",
+                    item.type === 'negative' && "bg-red-100 text-red-600"
+                  )}>
+                    {item.icon}
+                  </div>
+                )}
+                <span className={cn(
+                  "text-sm",
+                  index === 0 ? "font-semibold" : "font-medium text-muted-foreground"
+                )}>
+                  {item.label}
+                </span>
+              </div>
               <span className={cn(
-                "text-sm",
-                index === 0 ? "font-semibold" : "font-medium text-muted-foreground"
+                "font-bold tabular-nums",
+                item.type === 'base' && "text-base",
+                item.type === 'positive' && "text-green-600 text-sm",
+                item.type === 'negative' && "text-red-600 text-sm",
+                isInversionClickable && "text-blue-600 underline decoration-blue-600 underline-offset-2"
               )}>
-                {item.label}
+                {formatCurrency(item.value)}
               </span>
             </div>
-            <span className={cn(
-              "font-bold tabular-nums",
-              item.type === 'base' && "text-base",
-              item.type === 'positive' && "text-green-600 text-sm",
-              item.type === 'negative' && "text-red-600 text-sm"
-            )}>
-              {formatCurrency(item.value)}
-            </span>
-          </div>
-        ))}
+          )
+          return row
+        })}
         
         {/* Caja Final */}
         <div className="pt-3 mt-3 border-t-2 border-primary/20">

@@ -29,6 +29,7 @@ import {
   X,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
 
@@ -36,6 +37,12 @@ interface PrestamoDetalleModalProps {
   prestamoId: string | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  onRutaChanged?: () => void
+}
+
+interface RutaOption {
+  id: string
+  nombre_ruta: string
 }
 
 interface DetallePrestamo {
@@ -61,7 +68,9 @@ interface DetallePrestamo {
     telefono?: string
     direccion?: string
   }
+  ruta_id: string
   ruta: {
+    id: string
     nombre_ruta: string
     zona_geografica?: string
   }
@@ -80,10 +89,11 @@ interface PagoRegistrado {
   }
 }
 
-export function PrestamoDetalleModal({ prestamoId, open, onOpenChange }: PrestamoDetalleModalProps) {
+export function PrestamoDetalleModal({ prestamoId, open, onOpenChange, onRutaChanged }: PrestamoDetalleModalProps) {
   const [activeTab, setActiveTab] = useState("credito")
   const [detalle, setDetalle] = useState<DetallePrestamo | null>(null)
   const [pagos, setPagos] = useState<PagoRegistrado[]>([])
+  const [rutas, setRutas] = useState<RutaOption[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
@@ -91,6 +101,7 @@ export function PrestamoDetalleModal({ prestamoId, open, onOpenChange }: Prestam
   const [editandoSeguro, setEditandoSeguro] = useState(false)
   const [valorSeguroTemp, setValorSeguroTemp] = useState<string>("")
   const [guardandoSeguro, setGuardandoSeguro] = useState(false)
+  const [guardandoRuta, setGuardandoRuta] = useState(false)
   const { toast } = useToast()
 
   const fetchDetalle = useCallback(async (id: string) => {
@@ -104,7 +115,7 @@ export function PrestamoDetalleModal({ prestamoId, open, onOpenChange }: Prestam
         .select(`
           *,
           deudores!inner(nombre, apellido, cedula, telefono, direccion),
-          rutas!inner(nombre_ruta, zona_geografica)
+          rutas!inner(id, nombre_ruta, zona_geografica)
         `)
         .eq('id', id)
         .single()
@@ -128,7 +139,8 @@ export function PrestamoDetalleModal({ prestamoId, open, onOpenChange }: Prestam
         cuotas_pagadas: prestamo.cuotas_pagadas || 0,
         saldo_pendiente: prestamo.saldo_pendiente || 0,
         cliente: prestamo.deudores,
-        ruta: prestamo.rutas
+        ruta_id: prestamo.ruta_id,
+        ruta: { id: prestamo.rutas.id, ...prestamo.rutas }
       })
 
       // Obtener pagos del cronograma
@@ -162,6 +174,16 @@ export function PrestamoDetalleModal({ prestamoId, open, onOpenChange }: Prestam
     }
   }, [])
 
+  // Cargar lista de rutas cuando el modal está abierto
+  useEffect(() => {
+    if (!open) return
+    supabase
+      .from('rutas')
+      .select('id, nombre_ruta')
+      .order('nombre_ruta')
+      .then(({ data }) => setRutas((data as RutaOption[]) || []))
+  }, [open])
+
   // Solo cargar cuando el modal se abre con un ID válido
   useEffect(() => {
     if (open && prestamoId) {
@@ -171,6 +193,7 @@ export function PrestamoDetalleModal({ prestamoId, open, onOpenChange }: Prestam
       // Limpiar estado cuando se cierra
       setDetalle(null)
       setPagos([])
+      setRutas([])
       setError(null)
     }
   }, [open, prestamoId, fetchDetalle])
@@ -278,6 +301,50 @@ export function PrestamoDetalleModal({ prestamoId, open, onOpenChange }: Prestam
     }
   }
 
+  const guardarRuta = async (nuevaRutaId: string) => {
+    if (!detalle || !prestamoId || nuevaRutaId === detalle.ruta_id) return
+    setGuardandoRuta(true)
+    try {
+      // Generar nuevo número de crédito para la ruta (evita violar prestamos_numero_prestamo_ruta_unique)
+      const { data: nuevoNumero, error: numeroError } = await supabase
+        .rpc('generate_loan_number_by_route', { ruta_id_param: nuevaRutaId })
+
+      if (numeroError || nuevoNumero == null) {
+        console.error('Error generando número de préstamo:', numeroError)
+        throw new Error('No se pudo generar el número de crédito para la nueva ruta')
+      }
+
+      const { error: updateError } = await supabase
+        .from('prestamos')
+        .update({ ruta_id: nuevaRutaId, numero_prestamo: nuevoNumero })
+        .eq('id', prestamoId)
+
+      if (updateError) throw updateError
+
+      const rutaSeleccionada = rutas.find((r) => r.id === nuevaRutaId)
+      setDetalle({
+        ...detalle,
+        numero_prestamo: nuevoNumero,
+        ruta_id: nuevaRutaId,
+        ruta: { id: nuevaRutaId, nombre_ruta: rutaSeleccionada?.nombre_ruta ?? "", zona_geografica: undefined }
+      })
+      toast({
+        title: "Ruta actualizada",
+        description: `El préstamo se asignó a la nueva ruta con número ${nuevoNumero}.`
+      })
+      onRutaChanged?.()
+    } catch (err) {
+      console.error('Error actualizando ruta:', err)
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "No se pudo cambiar la ruta del préstamo",
+        variant: "destructive"
+      })
+    } finally {
+      setGuardandoRuta(false)
+    }
+  }
+
   // Calcular estadísticas
   const montoPagado = detalle ? detalle.monto_total - detalle.saldo_pendiente : 0
   const progreso = detalle ? (detalle.cuotas_pagadas / detalle.numero_cuotas) * 100 : 0
@@ -338,10 +405,26 @@ export function PrestamoDetalleModal({ prestamoId, open, onOpenChange }: Prestam
                       {detalle.numero_prestamo}
                     </DialogTitle>
                     {getEstadoBadge(detalle.estado)}
-                    <Badge variant="outline" className="gap-1">
-                      <MapPin className="w-3 h-3" />
-                      {detalle.ruta.nombre_ruta}
-                    </Badge>
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      <Select
+                        value={detalle.ruta_id}
+                        onValueChange={guardarRuta}
+                        disabled={guardandoRuta || rutas.length === 0}
+                      >
+                        <SelectTrigger className="w-[180px] h-8 border-dashed text-xs font-medium gap-1.5">
+                          {guardandoRuta && <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />}
+                          <SelectValue placeholder="Ruta" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {rutas.map((r) => (
+                            <SelectItem key={r.id} value={r.id}>
+                              {r.nombre_ruta}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                     <User className="w-4 h-4" />
