@@ -43,28 +43,30 @@ export default function Rutas() {
     refetch 
   } = useRutas({})
 
-  // Cargar estadísticas al montar el componente
+  // Solo mostrar rutas activas y suspendidas (ocultar inactivas)
+  const rutasVisibles = rutas.filter((r) => r.estado !== "inactiva")
+
+  // Calcular estadísticas con las rutas visibles
   useEffect(() => {
     const cargarEstadisticas = async () => {
-      // Calcular estadísticas generales
       const stats = {
-        totalRutas: rutas.length,
-        rutasActivas: rutas.filter(r => r.estado === 'activa').length,
-        rutasInactivas: rutas.filter(r => r.estado === 'inactiva').length,
-        rutasSuspendidas: rutas.filter(r => r.estado === 'suspendida').length,
-        carteraTotal: rutas.reduce((sum, r) => sum + r.estadisticas.carteraTotal, 0),
-        saldoPendiente: rutas.reduce((sum, r) => sum + r.estadisticas.saldoPendiente, 0),
-        rentabilidadPromedio: rutas.length > 0 ? rutas.reduce((sum, r) => sum + r.estadisticas.rentabilidad, 0) / rutas.length : 0,
-        eficienciaPromedio: rutas.length > 0 ? rutas.reduce((sum, r) => sum + r.estadisticas.eficienciaCobro, 0) / rutas.length : 0,
-        clientesActivos: rutas.reduce((sum, r) => sum + r.estadisticas.clientesActivos, 0),
-        clientesMorosos: rutas.reduce((sum, r) => sum + r.estadisticas.clientesMorosos, 0),
-        caja: rutas.reduce((sum, r) => sum + (r.estadisticas.caja || 0), 0),
-        segurosRecogidos: rutas.reduce((sum, r) => sum + (r.estadisticas.segurosRecogidos || 0), 0)
+        totalRutas: rutasVisibles.length,
+        rutasActivas: rutasVisibles.filter(r => r.estado === 'activa').length,
+        rutasInactivas: rutasVisibles.filter(r => r.estado === 'inactiva').length,
+        rutasSuspendidas: rutasVisibles.filter(r => r.estado === 'suspendida').length,
+        carteraTotal: rutasVisibles.reduce((sum, r) => sum + r.estadisticas.carteraTotal, 0),
+        saldoPendiente: rutasVisibles.reduce((sum, r) => sum + r.estadisticas.saldoPendiente, 0),
+        rentabilidadPromedio: rutasVisibles.length > 0 ? rutasVisibles.reduce((sum, r) => sum + r.estadisticas.rentabilidad, 0) / rutasVisibles.length : 0,
+        eficienciaPromedio: rutasVisibles.length > 0 ? rutasVisibles.reduce((sum, r) => sum + r.estadisticas.eficienciaCobro, 0) / rutasVisibles.length : 0,
+        clientesActivos: rutasVisibles.reduce((sum, r) => sum + r.estadisticas.clientesActivos, 0),
+        clientesMorosos: rutasVisibles.reduce((sum, r) => sum + r.estadisticas.clientesMorosos, 0),
+        caja: rutasVisibles.reduce((sum, r) => sum + (r.estadisticas.caja || 0), 0),
+        segurosRecogidos: rutasVisibles.reduce((sum, r) => sum + (r.estadisticas.segurosRecogidos || 0), 0)
       }
       setEstadisticas(stats)
     }
     cargarEstadisticas()
-  }, [rutas]) // Recargar cuando cambien las rutas
+  }, [rutasVisibles])
 
 
   const handleRutaView = (ruta: RutaExtendida) => {
@@ -134,17 +136,16 @@ export default function Rutas() {
       )}
 
       {/* Empty State */}
-      {!loading && !error && rutas.length === 0 && (
+      {!loading && !error && rutasVisibles.length === 0 && (
         <Card>
           <CardContent className="p-12 text-center">
             <div className="text-muted-foreground">
               <MapPin className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-              <p className="text-lg font-medium mb-2">No se encontraron rutas</p>
+              <p className="text-lg font-medium mb-2">No hay rutas activas o suspendidas</p>
               <p className="text-sm">
-                {searchTerm 
-                  ? "Intenta con otros términos de búsqueda" 
-                  : "Comienza agregando tu primera ruta"
-                }
+                {rutas.length > 0 
+                  ? "Solo se muestran rutas activas y suspendidas." 
+                  : "Comienza agregando tu primera ruta"}
               </p>
             </div>
           </CardContent>
@@ -158,10 +159,10 @@ export default function Rutas() {
         isGeneral={true}
       />
 
-      {/* Rutas Grid */}
-      {!loading && !error && rutas.length > 0 && (
+      {/* Rutas Grid (solo activas y suspendidas) */}
+      {!loading && !error && rutasVisibles.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {rutas.map((ruta) => (
+          {rutasVisibles.map((ruta) => (
             <RutaKPICard
               key={ruta.id}
               ruta={ruta}
