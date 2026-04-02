@@ -229,6 +229,19 @@ export function useDashboard() {
           if (idsRutas.includes(r.id)) rutasMap.set(r.id, r)
         }
 
+        const hoy = new Date()
+        const DIAS_MORA = 40
+
+        const estaVencido = (p: any): boolean => {
+          if (Number(p.saldo_pendiente) <= 0) return false
+          const ref = p.fecha_ultimo_pago || p.fecha_desembolso
+          if (!ref) return false
+          const dias = Math.floor(
+            (hoy.getTime() - new Date(ref + 'T12:00:00').getTime()) / 86_400_000
+          )
+          return dias > DIAS_MORA
+        }
+
         const porRuta: DatosRutaDashboard[] = idsRutas.map((rutaId) => {
           const ruta = rutasMap.get(rutaId)
           const prestamosDeLaRuta = prestamos.filter((p) => p.ruta_id === rutaId)
@@ -257,15 +270,15 @@ export function useDashboard() {
             const valorSeguro = Number(p.valor_seguro) || 0
             const totalPagadoActual = Math.max(0, montoTotal - saldo)
 
-            // Cartera (saldo pendiente activo)
-            if (p.estado === 'activo' || p.estado === 'vencido') {
+            // Cartera = todo saldo pendiente (sin importar estado en BD)
+            if (saldo > 0) {
               cartera += saldo
             }
 
-            // Nuevos en período
+            // Nuevos en período (comparar solo la parte de fecha, sin timezone)
             if (
-              p.fecha_desembolso >= fechaInicio &&
-              p.fecha_desembolso <= fechaFin
+              p.fecha_desembolso >= filtros.fechaInicio &&
+              p.fecha_desembolso <= filtros.fechaFin
             ) {
               prestamosRealizados++
               montoPrestado += montoPrincipal
@@ -291,16 +304,21 @@ export function useDashboard() {
             totalSegurosHistorico += valorSeguro
             totalCobradoHistorico += totalPagadoActual
 
-            // Salud
-            if (p.estado === 'activo') prestamosActivos++
-            if (p.estado === 'vencido') prestamosVencidos++
-            
-            // Préstamos pagados en el mes escogido
+            // Salud — vencido = más de 40 días sin pagar con saldo > 0
+            if (saldo > 0) {
+              if (estaVencido(p)) {
+                prestamosVencidos++
+              } else {
+                prestamosActivos++
+              }
+            }
+
+            // Préstamos pagados (saldo = 0) con fecha_ultimo_pago en el período
             if (
-              p.estado === 'pagado' && 
-              p.fecha_ultimo_pago && 
-              p.fecha_ultimo_pago >= fechaInicio && 
-              p.fecha_ultimo_pago <= fechaFin
+              saldo === 0 &&
+              p.fecha_ultimo_pago &&
+              p.fecha_ultimo_pago >= filtros.fechaInicio &&
+              p.fecha_ultimo_pago <= filtros.fechaFin
             ) {
               prestamosPagados++
               montoPagado += montoPrincipal
