@@ -1,296 +1,235 @@
-import { KPICard } from "@/components/dashboard/KPICard"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { 
-  DollarSign, 
-  Users, 
-  CreditCard, 
-  TrendingUp, 
-  AlertTriangle,
-  Clock,
-  Plus,
-  ArrowRight,
-  Calendar
-} from "lucide-react"
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell
-} from "recharts"
+import { useState, useEffect } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { AlertCircle, DollarSign, CreditCard, TrendingUp, Wallet, Receipt, Building2, BarChart3, ShieldCheck, CheckCircle2, ArrowDownRight, Gem, FileDown, Loader2 } from 'lucide-react'
+import { KPICard } from '@/components/dashboard/KPICard'
+import { DashboardFiltros } from '@/components/dashboard/DashboardFiltros'
+import { GraficoCarteraSemanal } from '@/components/dashboard/GraficoCarteraSemanal'
+import { TablaPerformanceRutas } from '@/components/dashboard/TablaPerformanceRutas'
+import { PyGSection } from '@/components/dashboard/PyGSection'
+import { SaludCartera } from '@/components/dashboard/SaludCartera'
+import { useDashboard, DashboardFiltros as Filtros } from '@/hooks/useDashboard'
+import { formatCOP } from '@/lib/contabilidad-utils'
+import { generarReportePDF } from '@/lib/reporte-pdf'
 
-// Data realista del sistema CREDITFLOW
-const kpiData = {
-  carteraTotal: "$8,450,000",
-  cobrosDia: "$625,400", 
-  prestamosActivos: 247,
-  morosidad: "8.7%"
+function KPISkeleton() {
+  return (
+    <div className="space-y-4">
+      {/* Skeleton Fila 1 (Premium 4 cards) */}
+      <div className="grid grid-cols-1">
+        <Skeleton className="h-32 rounded-[22px]" />
+      </div>
+
+      {/* Skeleton Fila 2 (Operativa 4 cards) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Skeleton className="h-32 rounded-xl" />
+        <Skeleton className="h-32 rounded-xl" />
+        <Skeleton className="h-32 rounded-xl" />
+        <Skeleton className="h-32 rounded-xl" />
+      </div>
+    </div>
+  )
 }
 
-const cobrosDiarios = [
-  { dia: "Lun", cobros: 580000, meta: 650000 },
-  { dia: "Mar", cobros: 695000, meta: 650000 },
-  { dia: "Mié", cobros: 625000, meta: 650000 },
-  { dia: "Jue", cobros: 710000, meta: 650000 },
-  { dia: "Vie", cobros: 785000, meta: 650000 },
-  { dia: "Sáb", cobros: 520000, meta: 650000 },
-]
-
-const evolucionCartera = [
-  { mes: "Sep", cartera: 7100000 },
-  { mes: "Oct", cartera: 7800000 },
-  { mes: "Nov", cartera: 8200000 },
-  { mes: "Dic", cartera: 8450000 },
-]
-
-const distribucionRutas = [
-  { ruta: "Kennedy", valor: 2150000, color: "#4CAF50" },
-  { ruta: "Suba", valor: 1890000, color: "#2196F3" },
-  { ruta: "Bosa", valor: 2280000, color: "#FF9800" },
-  { ruta: "Ciudad Bolívar", valor: 1630000, color: "#9C27B0" },
-  { ruta: "Engativá", valor: 500000, color: "#FF5722" },
-]
-
-const actividadReciente = [
-  {
-    tipo: "pago",
-    descripcion: "Andrea Morales realizó pago de $45,000",
-    tiempo: "Hace 8 min",
-    monto: "$45,000"
-  },
-  {
-    tipo: "prestamo",
-    descripcion: "Nuevo préstamo creado para Jorge Herrera",
-    tiempo: "Hace 22 min",
-    monto: "$280,000"
-  },
-  {
-    tipo: "alerta",
-    descripcion: "5 cuotas vencidas en Ruta Kennedy",
-    tiempo: "Hace 45 min",
-    monto: null
-  },
-  {
-    tipo: "pago",
-    descripcion: "Carlos Vargas realizó pago de $38,500",
-    tiempo: "Hace 1 hora",
-    monto: "$38,500"
-  }
-]
-
 export default function Dashboard() {
+  const now = new Date()
+  const primerDiaMes = new Date(now.getFullYear(), now.getMonth(), 1)
+  const ultimoDiaMes = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  const toStr = (d: Date) => d.toISOString().split('T')[0]
+
+  const [filtros, setFiltros] = useState<Filtros>({
+    fechaInicio: toStr(primerDiaMes),
+    fechaFin: toStr(ultimoDiaMes),
+    rutaIds: [],
+  })
+
+  const [exportando, setExportando] = useState(false)
+  const { rutas, data, loading, loadingRutas, error, cargarDashboard } = useDashboard()
+
+  // Cargar datos cuando cambian los filtros o cuando las rutas están listas
+  useEffect(() => {
+    if (!loadingRutas) {
+      cargarDashboard(filtros)
+    }
+  }, [filtros, loadingRutas, cargarDashboard])
+
+  const handleFiltroChange = (nuevosFiltros: Filtros) => {
+    setFiltros(nuevosFiltros)
+  }
+
+  const handleExportarPDF = async () => {
+    if (!data) return
+    setExportando(true)
+    try {
+      const rutasNombres =
+        filtros.rutaIds.length > 0
+          ? rutas.filter((r) => filtros.rutaIds.includes(r.id)).map((r) => r.nombre_ruta)
+          : []
+      generarReportePDF(data, filtros, rutasNombres)
+    } finally {
+      setExportando(false)
+    }
+  }
+
+  const c = data?.consolidado
+  const numRutas =
+    filtros.rutaIds.length > 0 ? filtros.rutaIds.length : rutas.length
+
   return (
-    <div className="p-6 space-y-6 bg-gradient-to-br from-background to-muted/30 min-h-full">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="p-6 space-y-6 bg-gradient-to-br from-background via-background to-muted/20 min-h-full">
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Resumen general de la operación - {new Date().toLocaleDateString('es-CO', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })}
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {filtros.fechaInicio === filtros.fechaFin
+              ? filtros.fechaInicio
+              : `${filtros.fechaInicio} – ${filtros.fechaFin}`}
+            {filtros.rutaIds.length > 0 && ` · ${filtros.rutaIds.length} ruta${filtros.rutaIds.length > 1 ? 's' : ''}`}
           </p>
         </div>
-        
-        <div className="flex gap-3">
-          <Button variant="outline">
-            <Calendar className="w-4 h-4 mr-2" />
-            Hoy
-          </Button>
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            Nuevo Préstamo
+        <div className="flex items-center gap-3 flex-wrap">
+          <DashboardFiltros
+            rutas={rutas}
+            filtros={filtros}
+            onChange={handleFiltroChange}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 gap-2 border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
+            onClick={handleExportarPDF}
+            disabled={!data || loading || exportando}
+          >
+            {exportando ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <FileDown className="w-4 h-4" />
+            )}
+            {exportando ? 'Generando...' : 'Exportar PDF'}
           </Button>
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <KPICard
-          title="Cartera Total"
-          value={kpiData.carteraTotal}
-          icon={DollarSign}
-          change={{ value: 8.2, isPositive: true }}
-          description="Capital prestado activo"
-          variant="success"
-        />
-        
-        <KPICard
-          title="Cobros del Día"
-          value={kpiData.cobrosDia}
-          icon={TrendingUp}
-          change={{ value: 12.8, isPositive: true }}
-          description="Meta: $650,000"
-        />
-        
-        <KPICard
-          title="Préstamos Activos"
-          value={kpiData.prestamosActivos}
-          icon={CreditCard}
-          change={{ value: 23, isPositive: true }}
-          description="Créditos vigentes"
-        />
-        
-        <KPICard
-          title="Morosidad"
-          value={kpiData.morosidad}
-          icon={AlertTriangle}
-          change={{ value: -1.8, isPositive: true }}
-          description="Cuotas vencidas"
-          variant="warning"
-        />
-      </div>
+      {/* ── Error ──────────────────────────────────────────────────────────── */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="w-4 h-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Cobros vs Meta */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-primary" />
-              Cobros vs. Meta Semanal
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={cobrosDiarios}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="dia" />
-                <YAxis />
-                <Tooltip 
-                  formatter={(value) => [`$${value.toLocaleString()}`, ""]}
-                />
-                <Bar dataKey="cobros" fill="hsl(var(--primary))" radius={4} />
-                <Bar dataKey="meta" fill="hsl(var(--muted))" radius={4} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Evolución Cartera */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-secondary" />
-              Evolución de Cartera
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={evolucionCartera}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="mes" />
-                <YAxis />
-                <Tooltip 
-                  formatter={(value) => [`$${value.toLocaleString()}`, "Cartera"]}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="cartera" 
-                  stroke="hsl(var(--secondary))" 
-                  strokeWidth={3}
-                  dot={{ fill: "hsl(var(--secondary))", strokeWidth: 2, r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Bottom Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Distribución por Rutas */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Distribución por Rutas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie
-                  data={distribucionRutas}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  dataKey="valor"
-                >
-                  {distribucionRutas.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => `$${value.toLocaleString()}`} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="space-y-2 mt-4">
-              {distribucionRutas.map((ruta) => (
-                <div key={ruta.ruta} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-full" 
-                      style={{ backgroundColor: ruta.color }}
-                    />
-                    <span>{ruta.ruta}</span>
-                  </div>
-                  <span className="font-medium">${ruta.valor.toLocaleString()}</span>
-                </div>
-              ))}
+      {/* ── KPIs ───────────────────────────────────────────────────────────── */}
+      {loading || !c ? (
+        <KPISkeleton />
+      ) : (
+        <>
+          {/* Fila 1: Salud del Negocio (Premium) */}
+          <div className="grid grid-cols-1 gap-4">
+            {/* Grupo de Salud: Cartera, Caja y Préstamos (4 columnas) */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 p-1.5 rounded-[22px] bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 border border-white/10 shadow-2xl relative overflow-hidden group/container">
+              <div className="absolute inset-0 bg-grid-white/[0.02] bg-[size:20px_20px]" />
+              <KPICard
+                title="Cartera Total"
+                value={formatCOP(c.cartera)}
+                icon={DollarSign}
+                description={`${c.prestamosActivos} préstamos activos`}
+                variant="transparent-white"
+                className="border-none shadow-none hover:bg-white/5"
+              />
+              <KPICard
+                title="Caja Actual"
+                value={formatCOP(c.cajaActual)}
+                icon={Wallet}
+                description="Liquidez histórica real"
+                variant="transparent-white"
+                className="border-none shadow-none hover:bg-white/5"
+              />
+              <KPICard
+                title="Préstamos Realizados"
+                value={c.prestamosRealizados.toString()}
+                icon={CreditCard}
+                description={`Valor: ${formatCOP(c.montoPrestado)}`}
+                variant="transparent-white"
+                className="border-none shadow-none hover:bg-white/5"
+              />
+              <KPICard
+                title="Préstamos Pagados"
+                value={c.prestamosPagados.toString()}
+                icon={CheckCircle2}
+                description={`Valor: ${formatCOP(c.montoPagado)}`}
+                variant="transparent-white"
+                className="border-none shadow-none hover:bg-white/5"
+              />
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Actividad Reciente */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Actividad Reciente</CardTitle>
-            <Button variant="ghost" size="sm">
-              Ver todo
-              <ArrowRight className="w-4 h-4 ml-1" />
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {actividadReciente.map((actividad, index) => (
-                <div key={index} className="flex items-center gap-4 p-3 rounded-lg bg-muted/30">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    actividad.tipo === "pago" ? "bg-success/20 text-success" :
-                    actividad.tipo === "prestamo" ? "bg-primary/20 text-primary" :
-                    "bg-warning/20 text-warning"
-                  }`}>
-                    {actividad.tipo === "pago" && <DollarSign className="w-5 h-5" />}
-                    {actividad.tipo === "prestamo" && <CreditCard className="w-5 h-5" />}
-                    {actividad.tipo === "alerta" && <AlertTriangle className="w-5 h-5" />}
-                  </div>
-                  
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{actividad.descripcion}</p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Clock className="w-3 h-3" />
-                      {actividad.tiempo}
-                    </div>
-                  </div>
-                  
-                  {actividad.monto && (
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-success">{actividad.monto}</p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+          {/* Fila 2: Operativa e Ingresos (4 columnas) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <KPICard
+              title="Ingresos por Intereses"
+              value={formatCOP(c.intereses)}
+              icon={TrendingUp}
+              description="Intereses recaudados"
+              variant="default"
+            />
+            <KPICard
+              title="Ingresos por Seguros"
+              value={formatCOP(c.seguros)}
+              icon={ShieldCheck}
+              description="Seguros de préstamos"
+              variant="default"
+            />
+            <KPICard
+              title="Gastos Totales"
+              value={formatCOP(c.totalGastos)}
+              icon={Receipt}
+              description="Operativos y admin."
+              variant={c.totalGastos > 0 ? 'warning' : 'default'}
+            />
+            <KPICard
+              title="Utilidad Neta"
+              value={formatCOP(c.utilidadNeta)}
+              icon={Gem}
+              description="Antes de pagos a socios"
+              variant="success"
+            />
+          </div>
+        </>
+      )}
+
+      {/* ── Gráfico + Salud ────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+        <div className="lg:col-span-2 flex flex-col">
+          {loading || !data ? (
+            <Skeleton className="h-[480px] rounded-xl" />
+          ) : (
+            <GraficoCarteraSemanal datos={data.datosSemana} />
+          )}
+        </div>
+        <div className="flex flex-col">
+          {loading || !c ? (
+            <Skeleton className="h-[480px] rounded-xl" />
+          ) : (
+            <SaludCartera consolidado={c} />
+          )}
+        </div>
       </div>
+
+      {/* ── Tabla de performance por ruta ─────────────────────────────────── */}
+      {loading || !data ? (
+        <Skeleton className="h-48 rounded-xl" />
+      ) : (
+        <TablaPerformanceRutas datos={data.porRuta} />
+      )}
+
+      {/* ── PyG ────────────────────────────────────────────────────────────── */}
+      {loading || !data ? (
+        <Skeleton className="h-64 rounded-xl" />
+      ) : (
+        <PyGSection pyg={data.pyg} numRutas={numRutas} />
+      )}
     </div>
   )
 }

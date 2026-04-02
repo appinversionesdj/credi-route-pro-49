@@ -407,6 +407,70 @@ export type Database = {
           },
         ]
       }
+      inversiones_ruta: {
+        Row: {
+          actualizado_por: string | null
+          concepto: string | null
+          creado_por: string | null
+          estado: string | null
+          fecha_actualizacion: string | null
+          fecha_creacion: string | null
+          fecha_inversion: string
+          id: string
+          monto: number
+          observaciones: string | null
+          ruta_id: string
+        }
+        Insert: {
+          actualizado_por?: string | null
+          concepto?: string | null
+          creado_por?: string | null
+          estado?: string | null
+          fecha_actualizacion?: string | null
+          fecha_creacion?: string | null
+          fecha_inversion?: string
+          id?: string
+          monto: number
+          observaciones?: string | null
+          ruta_id: string
+        }
+        Update: {
+          actualizado_por?: string | null
+          concepto?: string | null
+          creado_por?: string | null
+          estado?: string | null
+          fecha_actualizacion?: string | null
+          fecha_creacion?: string | null
+          fecha_inversion?: string
+          id?: string
+          monto?: number
+          observaciones?: string | null
+          ruta_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inversiones_ruta_actualizado_por_fkey"
+            columns: ["actualizado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "inversiones_ruta_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "inversiones_ruta_ruta_id_fkey"
+            columns: ["ruta_id"]
+            isOneToOne: false
+            referencedRelation: "rutas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pagos_recibidos: {
         Row: {
           eliminado_por: string | null
@@ -421,6 +485,10 @@ export type Database = {
           prestamo_id: string | null
           registrado_por: string | null
           tipo_pago: string | null
+          fechareal_pago: string | null
+          metodo_pago_id: string | null
+          actualizado_por: string | null
+          fecha_actualizacion: string | null
         }
         Insert: {
           eliminado_por?: string | null
@@ -435,6 +503,10 @@ export type Database = {
           prestamo_id?: string | null
           registrado_por?: string | null
           tipo_pago?: string | null
+          fechareal_pago?: string | null
+          metodo_pago_id?: string | null
+          actualizado_por?: string | null
+          fecha_actualizacion?: string | null
         }
         Update: {
           eliminado_por?: string | null
@@ -449,6 +521,10 @@ export type Database = {
           prestamo_id?: string | null
           registrado_por?: string | null
           tipo_pago?: string | null
+          fechareal_pago?: string | null
+          metodo_pago_id?: string | null
+          actualizado_por?: string | null
+          fecha_actualizacion?: string | null
         }
         Relationships: [
           {
