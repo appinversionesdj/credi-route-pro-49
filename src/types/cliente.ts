@@ -1,11 +1,41 @@
 import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types"
 
-// Tipos base de Supabase
 export type Cliente = Tables<"deudores">
 export type ClienteInsert = TablesInsert<"deudores">
 export type ClienteUpdate = TablesUpdate<"deudores">
 
-// Tipo extendido con información calculada
+// Resultado del SP get_clientes_tabla
+export interface ClienteTablaRow {
+  id: string
+  nombre: string
+  apellido: string
+  cedula: number
+  telefono: string | null
+  direccion: string | null
+  ocupacion: string | null
+  estado: string | null
+  fecha_nacimiento: string | null
+  foto_url: string | null
+  foto_cedula_url: string | null
+  foto_residencia_url: string | null
+  fecha_creacion: string | null
+  prestamos_activos: number
+  total_deuda: number
+  ultimo_pago: string | null
+  nombre_ruta: string | null
+}
+
+// Resultado del SP get_clientes_estadisticas
+export interface ClienteEstadisticasSP {
+  total_clientes: number
+  clientes_activos: number
+  clientes_morosos: number
+  clientes_inactivos: number
+  prestamos_activos: number
+  deuda_total: number
+}
+
+// Legado — mantener para compatibilidad con FormularioCliente
 export interface ClienteExtendido extends Cliente {
   prestamosActivos?: number
   totalDeuda?: number
@@ -13,15 +43,11 @@ export interface ClienteExtendido extends Cliente {
   ruta?: string
 }
 
-// Tipo para filtros de búsqueda
 export interface ClienteFiltros {
   busqueda?: string
   estado?: string
-  ruta?: string
-  empresa_id?: string
 }
 
-// Tipo para estadísticas de clientes
 export interface ClienteEstadisticas {
   totalClientes: number
   clientesActivos: number

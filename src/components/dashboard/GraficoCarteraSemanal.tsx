@@ -55,7 +55,7 @@ export function GraficoCarteraSemanal({ datos }: Props) {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="flex-1 min-h-[450px] p-0 pb-4">
+      <CardContent className="flex-1 min-h-[280px] xl:min-h-[400px] p-0 pb-4">
         {!hayDatos ? (
           <div className="h-full flex items-center justify-center">
             <p className="text-sm text-muted-foreground">Sin datos en este período</p>
@@ -82,7 +82,7 @@ export function GraficoCarteraSemanal({ datos }: Props) {
                 axisLine={false}
                 tickLine={false}
                 tickFormatter={(v) => formatCOP(v)}
-                width={80}
+                width={65}
               />
               <Tooltip content={<CustomTooltip />} />
               <Area

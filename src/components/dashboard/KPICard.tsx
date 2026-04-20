@@ -73,13 +73,13 @@ export function KPICard({
       getVariantStyles(),
       className
     )}>
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <p className={cn("text-sm font-medium text-muted-foreground", getTextColorStyles() && "text-white/80")}>{title}</p>
-            <p className={cn("text-2xl font-bold text-foreground", getTextColorStyles())}>{value}</p>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between gap-2">
+          <div className="space-y-0.5 min-w-0 flex-1">
+            <p className={cn("text-xs font-medium text-muted-foreground", getTextColorStyles() && "text-white/80")}>{title}</p>
+            <p className={cn("text-lg font-bold text-foreground truncate", getTextColorStyles())}>{value}</p>
             {description && (
-              <p className={cn("text-xs text-muted-foreground", getTextColorStyles() && "text-white/70")}>{description}</p>
+              <p className={cn("text-xs text-muted-foreground truncate", getTextColorStyles() && "text-white/70")}>{description}</p>
             )}
             {change && (
               <div className={cn(
@@ -95,10 +95,10 @@ export function KPICard({
           </div>
           
           <div className={cn(
-            "w-12 h-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 duration-300",
+            "w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center transition-transform group-hover:scale-110 duration-300",
             getIconStyles()
           )}>
-            <Icon className="w-6 h-6" />
+            <Icon className="w-5 h-5" />
           </div>
         </div>
 

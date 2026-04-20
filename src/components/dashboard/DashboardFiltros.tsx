@@ -95,7 +95,7 @@ export function DashboardFiltros({ rutas, filtros, onChange }: Props) {
           <Button
             variant="outline"
             size="sm"
-            className="h-9 gap-2 text-sm font-normal min-w-[200px] justify-start"
+            className="h-9 gap-2 text-sm font-normal justify-start"
           >
             <CalendarDays className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
             <span className="truncate">

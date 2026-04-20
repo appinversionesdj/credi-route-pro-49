@@ -1,175 +1,87 @@
-import { useState, useEffect } from "react"
-import { Card, CardContent } from "@/components/ui/card"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { 
-  Plus, 
-  Search, 
-  Filter,
-  Loader2
-} from "lucide-react"
+import { Plus, Loader2, AlertCircle } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useClientes } from "@/hooks/useClientes"
-import { ClienteFiltros } from "@/types/cliente"
-import ClienteCard from "@/components/clientes/ClienteCard"
+import { ClienteTablaRow, ClienteInsert, ClienteUpdate } from "@/types/cliente"
 import ClienteEstadisticas from "@/components/clientes/ClienteEstadisticas"
+import ClienteTabla from "@/components/clientes/ClienteTabla"
 import FormularioCliente from "@/components/clientes/FormularioCliente"
 
 export default function Clientes() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [filtros, setFiltros] = useState<ClienteFiltros>({})
-  const [estadisticas, setEstadisticas] = useState(null)
+  const { clientes, estadisticas, loading, loadingStats, error, crearCliente, actualizarCliente, eliminarCliente } =
+    useClientes()
+
   const [showFormulario, setShowFormulario] = useState(false)
-  
-  // Hook para manejar clientes con Supabase
-  const { clientes, loading, error, obtenerEstadisticas, crearCliente } = useClientes(filtros)
+  const [clienteEditar, setClienteEditar] = useState<ClienteTablaRow | null>(null)
 
-  // Cargar estadísticas al montar el componente
-  useEffect(() => {
-    const cargarEstadisticas = async () => {
-      const stats = await obtenerEstadisticas()
-      setEstadisticas(stats)
-    }
-    cargarEstadisticas()
-  }, [clientes]) // Recargar cuando cambien los clientes
-
-  // Actualizar filtros cuando cambie el término de búsqueda
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      setFiltros(prev => ({
-        ...prev,
-        busqueda: searchTerm || undefined
-      }))
-    }, 500) // Debounce de 500ms
-
-    return () => clearTimeout(timeoutId)
-  }, [searchTerm])
-
-  const handleClienteView = (cliente: any) => {
-    // TODO: Implementar vista de detalle del cliente
-    console.log("Ver cliente:", cliente)
-  }
-
-  const handleClienteEdit = (cliente: any) => {
-    // TODO: Implementar edición del cliente
-    console.log("Editar cliente:", cliente)
-  }
-
-  const handleClienteDelete = (id: string) => {
-    // TODO: Implementar eliminación del cliente
-    console.log("Eliminar cliente:", id)
-  }
-
-  const handleNuevoCliente = () => {
+  const handleNuevo = () => {
+    setClienteEditar(null)
     setShowFormulario(true)
   }
 
-  const handleSubmitCliente = async (clienteData: any) => {
-    const cliente = await crearCliente(clienteData)
-    return !!cliente
+  const handleEditar = (cliente: ClienteTablaRow) => {
+    setClienteEditar(cliente)
+    setShowFormulario(true)
+  }
+
+  const handleSubmit = async (data: ClienteInsert): Promise<boolean> => {
+    if (clienteEditar) {
+      return actualizarCliente(clienteEditar.id, data as ClienteUpdate)
+    }
+    const resultado = await crearCliente(data)
+    return !!resultado
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 xl:p-6 space-y-4 xl:space-y-5 min-h-full bg-gradient-to-br from-background via-background to-muted/20">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Gestión de Clientes</h1>
-          <p className="text-muted-foreground">
-            Administra la información de tus deudores
-          </p>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Clientes</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Gestión de deudores y documentos</p>
         </div>
-        
-        <Button onClick={handleNuevoCliente}>
-          <Plus className="w-4 h-4 mr-2" />
+        <Button onClick={handleNuevo} className="gap-2 self-start sm:self-auto">
+          <Plus className="w-4 h-4" />
           Nuevo Cliente
         </Button>
       </div>
 
-      {/* Search and Filters */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input 
-                placeholder="Buscar por nombre, cédula o teléfono..." 
-                className="pl-10"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                disabled={loading}
-              />
-            </div>
-            <Button variant="outline" disabled={loading}>
-              <Filter className="w-4 h-4 mr-2" />
-              Filtros
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Estadísticas */}
+      <ClienteEstadisticas estadisticas={estadisticas} loading={loadingStats} />
 
-      {/* Error State */}
+      {/* Error */}
       {error && (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2 text-red-800">
-              <span className="font-medium">Error:</span>
-              <span>{error}</span>
-            </div>
-          </CardContent>
-        </Card>
+        <Alert variant="destructive">
+          <AlertCircle className="w-4 h-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
-      {/* Loading State */}
-      {loading && (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <span className="ml-2 text-muted-foreground">Cargando clientes...</span>
+      {/* Loading inicial */}
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="w-7 h-7 animate-spin text-primary" />
+          <span className="ml-2 text-muted-foreground text-sm">Cargando clientes...</span>
         </div>
+      ) : (
+        <ClienteTabla
+          clientes={clientes}
+          onEdit={handleEditar}
+          onDelete={eliminarCliente}
+        />
       )}
 
-      {/* Empty State */}
-      {!loading && !error && clientes.length === 0 && (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <div className="text-muted-foreground">
-              <p className="text-lg font-medium mb-2">No se encontraron clientes</p>
-              <p className="text-sm">
-                {searchTerm 
-                  ? "Intenta con otros términos de búsqueda" 
-                  : "Comienza agregando tu primer cliente"
-                }
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Clientes Grid */}
-      {!loading && !error && clientes.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {clientes.map((cliente) => (
-            <ClienteCard
-              key={cliente.id}
-              cliente={cliente}
-              onView={handleClienteView}
-              onEdit={handleClienteEdit}
-              onDelete={handleClienteDelete}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Stats Summary */}
-      <ClienteEstadisticas 
-        estadisticas={estadisticas} 
-        loading={loading}
-      />
-
-      {/* Formulario de Cliente */}
+      {/* Formulario crear / editar */}
       <FormularioCliente
         open={showFormulario}
-        onOpenChange={setShowFormulario}
-        onSubmit={handleSubmitCliente}
+        onOpenChange={(open) => { setShowFormulario(open); if (!open) setClienteEditar(null) }}
+        onSubmit={handleSubmit}
+        cliente={clienteEditar ? {
+          ...clienteEditar,
+          prestamosActivos: clienteEditar.prestamos_activos,
+          totalDeuda: clienteEditar.total_deuda,
+        } : null}
         loading={loading}
       />
     </div>

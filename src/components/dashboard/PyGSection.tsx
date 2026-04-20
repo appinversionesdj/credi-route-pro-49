@@ -81,7 +81,7 @@ export function PyGSection({ pyg, numRutas }: Props) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Columna izquierda: Ingresos y Gastos */}
           <div className="space-y-1">
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">

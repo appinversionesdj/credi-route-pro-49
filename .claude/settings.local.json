@@ -6,7 +6,8 @@
       "Bash(npx tsc:*)",
       "Bash(npx vite:*)",
       "Bash(npm install:*)",
-      "Bash(node -e \"require\\('jspdf'\\); console.log\\('jspdf ok'\\)\")"
+      "Bash(node -e \"require\\('jspdf'\\); console.log\\('jspdf ok'\\)\")",
+      "Bash(npm run *)"
     ]
   }
 }

@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { LayoutGrid, TrendingUp, TrendingDown, Minus, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { LayoutGrid, TrendingUp, TrendingDown, Minus, Search, ArrowUpDown, ArrowUp, ArrowDown, ArrowRight } from 'lucide-react'
 import { DatosRutaDashboard } from '@/lib/contabilidad-utils'
 import { formatCOP } from '@/lib/contabilidad-utils'
 import { cn } from '@/lib/utils'
@@ -74,6 +75,7 @@ const cols = [
 ]
 
 export function TablaPerformanceRutas({ datos }: Props) {
+  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'utilidadNeta', direction: 'desc' })
 
@@ -146,8 +148,8 @@ export function TablaPerformanceRutas({ datos }: Props) {
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="overflow-x-auto max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-muted">
-          <table className="w-full text-sm border-collapse min-w-[1000px]">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse min-w-[860px]">
             <thead className="sticky top-0 z-10 bg-background shadow-sm">
               <tr className="bg-muted/40 backdrop-blur-md">
                 {cols.map((col) => (
@@ -155,7 +157,7 @@ export function TablaPerformanceRutas({ datos }: Props) {
                     key={col.key}
                     onClick={() => handleSort(col.key)}
                     className={cn(
-                      'px-4 py-3 text-[10px] font-bold text-muted-foreground tracking-widest uppercase whitespace-nowrap cursor-pointer transition-colors hover:text-foreground group',
+                      'px-3 py-2.5 text-[10px] font-bold text-muted-foreground tracking-widest uppercase whitespace-nowrap cursor-pointer transition-colors hover:text-foreground group',
                       col.align === 'right' && 'text-right',
                       col.align === 'center' && 'text-center',
                       col.align === 'left' && 'text-left'
@@ -190,29 +192,31 @@ export function TablaPerformanceRutas({ datos }: Props) {
                 filteredAndSortedDatos.map((ruta, i) => (
                   <tr
                     key={ruta.rutaId}
-                    className="border-b border-border/40 transition-colors hover:bg-primary/[0.02] last:border-0"
+                    onClick={() => navigate(`/rutas/${ruta.rutaId}`)}
+                    className="border-b border-border/40 transition-colors hover:bg-primary/5 last:border-0 cursor-pointer group/row"
                   >
-                    <td className="px-4 py-3 sticky left-0 bg-background/50 backdrop-blur-sm z-[5]">
+                    <td className="px-3 py-2.5 sticky left-0 bg-background/50 backdrop-blur-sm z-[5]">
                       <div className="flex items-center gap-2">
                         <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-                        <span className="font-bold text-foreground text-xs">{ruta.nombreRuta}</span>
+                        <span className="font-bold text-foreground text-xs group-hover/row:text-primary transition-colors">{ruta.nombreRuta}</span>
+                        <ArrowRight className="w-3 h-3 text-primary opacity-0 group-hover/row:opacity-100 transition-opacity -ml-0.5" />
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold text-foreground/90 tabular-nums">
+                    <td className="px-3 py-2.5 text-right font-semibold text-foreground/90 tabular-nums">
                       {formatCOP(ruta.cartera)}
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums">
+                    <td className="px-3 py-2.5 text-right tabular-nums">
                       <span className={cn(ruta.cajaActual < 0 && "text-destructive")}>
                         {formatCOP(ruta.cajaActual)}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right text-indigo-400 font-medium tabular-nums">
+                    <td className="px-3 py-2.5 text-right text-indigo-400 font-medium tabular-nums">
                       {formatCOP(ruta.inversionTotal)}
                     </td>
-                    <td className="px-4 py-3 text-right text-orange-400 font-medium tabular-nums">
+                    <td className="px-3 py-2.5 text-right text-orange-400 font-medium tabular-nums">
                       {formatCOP(ruta.valorSaldado)}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-3 py-2.5 text-right">
                       <div className="font-medium text-foreground tabular-nums">
                         {formatCOP(ruta.montoPrestado)}
                       </div>
@@ -220,7 +224,7 @@ export function TablaPerformanceRutas({ datos }: Props) {
                         {ruta.prestamosRealizados} <span className="font-normal">pts</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-3 py-2.5 text-right">
                       <div className="font-medium text-foreground tabular-nums">
                         {formatCOP(ruta.montoPagado)}
                       </div>
@@ -228,19 +232,19 @@ export function TablaPerformanceRutas({ datos }: Props) {
                         {ruta.prestamosPagados} <span className="font-normal">pts</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right text-success font-medium tabular-nums">
+                    <td className="px-3 py-2.5 text-right text-success font-medium tabular-nums">
                       {formatCOP(ruta.intereses)}
                     </td>
-                    <td className="px-4 py-3 text-right text-indigo-500 font-medium tabular-nums">
+                    <td className="px-3 py-2.5 text-right text-indigo-500 font-medium tabular-nums">
                       {formatCOP(ruta.seguros)}
                     </td>
-                    <td className="px-4 py-3 text-right text-muted-foreground font-medium tabular-nums">
+                    <td className="px-3 py-2.5 text-right text-muted-foreground font-medium tabular-nums">
                       {formatCOP(ruta.totalGastos)}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-3 py-2.5 text-right">
                       <UtilCell value={ruta.utilidadNeta} max={maxUtilidad} />
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-3 py-2.5 text-center">
                       <MorosidadBadge pct={ruta.tasaMorosidad} />
                     </td>
                   </tr>
@@ -248,40 +252,40 @@ export function TablaPerformanceRutas({ datos }: Props) {
               )}
             </tbody>
             {filteredAndSortedDatos.length > 1 && (
-              <tfoot className="sticky bottom-0 z-10 bg-muted/90 backdrop-blur-md border-t-2 border-border shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+              <tfoot className="bg-muted/60 border-t-2 border-border">
                 <tr>
-                  <td className="px-4 py-3 font-bold text-foreground text-xs uppercase tracking-wider sticky left-0 z-10 bg-muted/90">Total</td>
-                  <td className="px-4 py-3 text-right font-bold text-foreground/90 tabular-nums">
+                  <td className="px-3 py-2.5 font-bold text-foreground text-xs uppercase tracking-wider">Total</td>
+                  <td className="px-3 py-2.5 text-right font-bold text-foreground/90 tabular-nums">
                     {formatCOP(filteredAndSortedDatos.reduce((s, r) => s + r.cartera, 0))}
                   </td>
-                  <td className="px-4 py-3 text-right font-bold tabular-nums">
+                  <td className="px-3 py-2.5 text-right font-bold tabular-nums">
                     {formatCOP(filteredAndSortedDatos.reduce((s, r) => s + r.cajaActual, 0))}
                   </td>
-                  <td className="px-4 py-3 text-right font-bold text-indigo-400 tabular-nums">
+                  <td className="px-3 py-2.5 text-right font-bold text-indigo-400 tabular-nums">
                     {formatCOP(filteredAndSortedDatos.reduce((s, r) => s + r.inversionTotal, 0))}
                   </td>
-                  <td className="px-4 py-3 text-right font-bold text-orange-400 tabular-nums">
+                  <td className="px-3 py-2.5 text-right font-bold text-orange-400 tabular-nums">
                     {formatCOP(filteredAndSortedDatos.reduce((s, r) => s + r.valorSaldado, 0))}
                   </td>
-                  <td className="px-4 py-3 text-right font-bold tabular-nums">
+                  <td className="px-3 py-2.5 text-right font-bold tabular-nums">
                     {formatCOP(filteredAndSortedDatos.reduce((s, r) => s + r.montoPrestado, 0))}
                   </td>
-                  <td className="px-4 py-3 text-right font-bold tabular-nums">
+                  <td className="px-3 py-2.5 text-right font-bold tabular-nums">
                     {formatCOP(filteredAndSortedDatos.reduce((s, r) => s + r.montoPagado, 0))}
                   </td>
-                  <td className="px-4 py-3 text-right font-bold text-success tabular-nums">
+                  <td className="px-3 py-2.5 text-right font-bold text-success tabular-nums">
                     {formatCOP(filteredAndSortedDatos.reduce((s, r) => s + r.intereses, 0))}
                   </td>
-                  <td className="px-4 py-3 text-right font-bold text-indigo-500 tabular-nums">
+                  <td className="px-3 py-2.5 text-right font-bold text-indigo-500 tabular-nums">
                     {formatCOP(filteredAndSortedDatos.reduce((s, r) => s + r.seguros, 0))}
                   </td>
-                  <td className="px-4 py-3 text-right font-bold text-muted-foreground tabular-nums">
+                  <td className="px-3 py-2.5 text-right font-bold text-muted-foreground tabular-nums">
                     {formatCOP(filteredAndSortedDatos.reduce((s, r) => s + r.totalGastos, 0))}
                   </td>
-                  <td className="px-4 py-3 text-right font-bold tabular-nums">
+                  <td className="px-3 py-2.5 text-right font-bold tabular-nums">
                     {formatCOP(filteredAndSortedDatos.reduce((s, r) => s + r.utilidadNeta, 0))}
                   </td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-3 py-2.5 text-center">
                     -
                   </td>
                 </tr>

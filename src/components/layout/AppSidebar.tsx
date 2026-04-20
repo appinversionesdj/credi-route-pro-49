@@ -1,19 +1,18 @@
-import { useState } from "react"
-import { 
-  LayoutDashboard, 
-  Users, 
-  CreditCard, 
-  MapPin, 
-  Wallet, 
-  Calculator,
+import {
+  LayoutDashboard,
+  Users,
+  CreditCard,
+  Wallet,
   FileText,
   Settings,
   TrendingUp,
-  ChevronDown,
-  Menu
+  PanelLeftClose,
+  PanelLeftOpen,
+  CalendarDays,
 } from "lucide-react"
 import { NavLink, useLocation } from "react-router-dom"
 import creditflow_logo from "@/assets/creditflow-logo-large.svg"
+import { cn } from "@/lib/utils"
 
 import {
   Sidebar,
@@ -24,180 +23,195 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
   useSidebar,
   SidebarHeader,
-  SidebarFooter
+  SidebarFooter,
 } from "@/components/ui/sidebar"
-import { Button } from "@/components/ui/button"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 const navigationItems = [
-  {
-    title: "Base Diaria",
-    url: "/",
-    icon: Calculator,
-    description: "Turnos y conciliación"
-  },
-  {
-    title: "Clientes",
-    url: "/clientes",
-    icon: Users,
-    description: "Gestión de deudores"
-  },
-  {
-    title: "Préstamos",
-    url: "/prestamos",
-    icon: CreditCard,
-    description: "Créditos activos"
-  },
-  {
-    title: "Rutas",
-    url: "/rutas",
-    icon: MapPin,
-    description: "Zonas de cobro"
-  },
-  {
-    title: "Cobros",
-    url: "/cobros",
-    icon: Wallet,
-    description: "Pagos y cobranza"
-  }
+  { title: "Dashboard",    url: "/dashboard",    icon: LayoutDashboard, description: "Vista general" },
+  { title: "Clientes",     url: "/clientes",     icon: Users,           description: "Gestión de deudores" },
+  { title: "Préstamos",    url: "/prestamos",    icon: CreditCard,      description: "Créditos activos" },
+  { title: "Presupuesto",  url: "/presupuesto",  icon: CalendarDays,    description: "Cobro diario por ruta" },
+  { title: "Cobros",       url: "/cobros",       icon: Wallet,          description: "Pagos y cobranza" },
 ]
 
 const reportItems = [
-  {
-    title: "Dashboard",
-    url: "/dashboard",
-    icon: LayoutDashboard,
-    description: "Vista general"
-  },
-  {
-    title: "Reportes",
-    url: "/reportes",
-    icon: FileText,
-    description: "Analytics y reportes"
-  },
-  {
-    title: "Métricas",
-    url: "/metricas",
-    icon: TrendingUp,
-    description: "KPIs y dashboards"
-  }
+  { title: "Reportes", url: "/reportes", icon: FileText,   description: "Analytics y reportes" },
+  { title: "Métricas", url: "/metricas", icon: TrendingUp, description: "KPIs y dashboards" },
 ]
 
 export function AppSidebar() {
-  const { state } = useSidebar()
+  const { state, toggleSidebar } = useSidebar()
   const location = useLocation()
   const currentPath = location.pathname
   const collapsed = state === "collapsed"
 
   const isActive = (path: string) => {
-    if (path === "/") {
-      return currentPath === "/"
-    }
+    if (path === "/") return currentPath === "/"
     return currentPath === path || currentPath.startsWith(path + "/")
   }
 
-  const getNavClass = (path: string) => {
-    const active = isActive(path)
-    return active 
-      ? "bg-sidebar-accent text-sidebar-primary font-medium border-r-2 border-sidebar-primary" 
-      : "hover:bg-sidebar-accent/50 text-sidebar-foreground"
+  /* Active class applied to NavLink wrapper */
+  const linkClass = (path: string) =>
+    cn(
+      "flex items-center w-full rounded-lg transition-all duration-200",
+      collapsed ? "justify-center p-0" : "gap-3 px-3 py-2",
+      isActive(path)
+        ? "bg-sidebar-accent text-sidebar-primary font-medium border-r-2 border-sidebar-primary"
+        : "hover:bg-sidebar-accent/50 text-sidebar-foreground"
+    )
+
+  /* ── Reusable nav item ──────────────────────────────────────────────────── */
+  const NavItem = ({ item }: { item: typeof navigationItems[0] }) => {
+    const active = isActive(item.url)
+
+    if (collapsed) {
+      return (
+        <SidebarMenuItem className="flex justify-center">
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <SidebarMenuButton asChild isActive={active}>
+                <NavLink
+                  to={item.url}
+                  className={cn(
+                    "flex items-center justify-center rounded-lg transition-all duration-200",
+                    active
+                      ? "bg-sidebar-accent text-sidebar-primary"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+                  )}
+                >
+                  <item.icon className="w-5 h-5" />
+                </NavLink>
+              </SidebarMenuButton>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="ml-2">
+              <p className="font-medium text-sm">{item.title}</p>
+              <p className="text-xs opacity-70">{item.description}</p>
+            </TooltipContent>
+          </Tooltip>
+        </SidebarMenuItem>
+      )
+    }
+
+    return (
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild className="h-12" isActive={active}>
+          <NavLink
+            to={item.url}
+            className={linkClass(item.url)}
+            title={item.description}
+          >
+            <item.icon className="w-5 h-5 flex-shrink-0" />
+            <div className="flex flex-col">
+              <span className="text-sm font-medium">{item.title}</span>
+              <span className="text-xs opacity-70">{item.description}</span>
+            </div>
+          </NavLink>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    )
   }
 
   return (
-    <Sidebar className={collapsed ? "w-16" : "w-64"} collapsible="icon">
+    <Sidebar collapsible="icon">
+      {/* ── Header ────────────────────────────────────────────────────────── */}
       <SidebarHeader className="border-b border-sidebar-border p-2">
-        {!collapsed && (
-          <div className="flex items-center justify-center">
-            <img 
-              src={creditflow_logo} 
-              alt="CREDITFLOW Logo" 
-              className="w-48 h-12"
+        {collapsed ? (
+          <button
+            onClick={toggleSidebar}
+            className="w-10 h-10 mx-auto flex items-center justify-center rounded-lg hover:bg-sidebar-accent/50 transition-colors"
+            title="Expandir sidebar"
+          >
+            <PanelLeftOpen className="w-5 h-5 text-sidebar-foreground" />
+          </button>
+        ) : (
+          <div className="flex items-center justify-between px-1">
+            <img
+              src={creditflow_logo}
+              alt="CREDITFLOW Logo"
+              className="w-36 h-10 object-contain"
             />
+            <button
+              onClick={toggleSidebar}
+              className="p-1.5 rounded-lg hover:bg-sidebar-accent/50 transition-colors flex-shrink-0"
+              title="Contraer sidebar"
+            >
+              <PanelLeftClose className="w-4 h-4 text-sidebar-foreground/60" />
+            </button>
           </div>
-        )}
-        {collapsed && (
-          <img 
-            src={creditflow_logo} 
-            alt="CREDITFLOW Logo" 
-            className="w-14 h-4 mx-auto"
-          />
         )}
       </SidebarHeader>
 
-      <SidebarContent className="px-2 py-4">
-        <SidebarGroup>
-          <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>
-            Operaciones
-          </SidebarGroupLabel>
+      {/* ── Content ───────────────────────────────────────────────────────── */}
+      <SidebarContent className={cn("py-4", collapsed ? "px-1" : "px-2")}>
+
+        {/* Operaciones */}
+        <SidebarGroup className={collapsed ? "px-0" : undefined}>
+          <SidebarGroupLabel>Operaciones</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className={cn(collapsed && "items-center")}>
               {navigationItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild className="h-12">
-                    <NavLink 
-                      to={item.url} 
-                      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${getNavClass(item.url)}`}
-                      title={item.description}
-                    >
-                      <item.icon className="w-5 h-5 flex-shrink-0" />
-                      {!collapsed && (
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium">{item.title}</span>
-                          <span className="text-xs opacity-70">{item.description}</span>
-                        </div>
-                      )}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <NavItem key={item.title} item={item} />
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>
-            Análisis
-          </SidebarGroupLabel>
+        {/* Análisis */}
+        <SidebarGroup className={collapsed ? "px-0" : undefined}>
+          <SidebarGroupLabel>Análisis</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className={cn(collapsed && "items-center")}>
               {reportItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild className="h-12">
-                    <NavLink 
-                      to={item.url} 
-                      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${getNavClass(item.url)}`}
-                      title={item.description}
-                    >
-                      <item.icon className="w-5 h-5 flex-shrink-0" />
-                      {!collapsed && (
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium">{item.title}</span>
-                          <span className="text-xs opacity-70">{item.description}</span>
-                        </div>
-                      )}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <NavItem key={item.title} item={item} />
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
 
+      {/* ── Footer ────────────────────────────────────────────────────────── */}
       <SidebarFooter className="border-t border-sidebar-border p-2">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <NavLink 
-                to="/configuracion" 
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${getNavClass("/configuracion")}`}
-              >
-                <Settings className="w-5 h-5" />
-                {!collapsed && <span className="text-sm">Configuración</span>}
-              </NavLink>
-            </SidebarMenuButton>
+        <SidebarMenu className={cn(collapsed && "items-center")}>
+          <SidebarMenuItem className={cn(collapsed && "flex justify-center")}>
+            {collapsed ? (
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <SidebarMenuButton asChild isActive={isActive("/configuracion")}>
+                    <NavLink
+                      to="/configuracion"
+                      className={cn(
+                        "flex items-center justify-center rounded-lg transition-all duration-200",
+                        isActive("/configuracion")
+                          ? "bg-sidebar-accent text-sidebar-primary"
+                          : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+                      )}
+                    >
+                      <Settings className="w-5 h-5" />
+                    </NavLink>
+                  </SidebarMenuButton>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="ml-2">
+                  <p className="font-medium text-sm">Configuración</p>
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <SidebarMenuButton asChild>
+                <NavLink
+                  to="/configuracion"
+                  className={linkClass("/configuracion")}
+                >
+                  <Settings className="w-5 h-5" />
+                  <span className="text-sm">Configuración</span>
+                </NavLink>
+              </SidebarMenuButton>
+            )}
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

@@ -316,9 +316,9 @@ export default function DetalleRuta() {
         <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
         <p className="text-lg font-semibold mb-2">Error al cargar la ruta</p>
         <p className="text-muted-foreground mb-4">No se pudo obtener la información de la ruta</p>
-        <Button onClick={() => navigate("/rutas")}>
+        <Button onClick={() => navigate("/dashboard")}>
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Volver a Rutas
+          Volver al Dashboard
         </Button>
       </div>
     )
@@ -335,7 +335,7 @@ export default function DetalleRuta() {
           <Button 
             variant="outline" 
             size="icon"
-            onClick={() => navigate("/rutas")}
+            onClick={() => navigate("/dashboard")}
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>

@@ -1,99 +1,67 @@
-import { useState, useEffect } from "react"
-import { supabase, testSupabaseConnection } from "@/integrations/supabase/client"
-import { 
-  Cliente, 
-  ClienteExtendido, 
-  ClienteInsert, 
-  ClienteUpdate, 
+import { useState, useEffect, useCallback } from "react"
+import { supabase } from "@/integrations/supabase/client"
+import {
+  Cliente,
+  ClienteTablaRow,
+  ClienteEstadisticasSP,
+  ClienteInsert,
+  ClienteUpdate,
   ClienteFiltros,
-  ClienteEstadisticas 
 } from "@/types/cliente"
 import { useToast } from "@/hooks/use-toast"
 
+const STORAGE_BASE = `${import.meta.env.VITE_SUPABASE_URL || "https://lvwsrwaepgievgqflziq.supabase.co"}/storage/v1/object/public/creditos`
+
+export function buildFotoUrl(path: string | null): string | null {
+  if (!path) return null
+  if (path.startsWith("http")) return path
+  return `${STORAGE_BASE}/${path}`
+}
+
 export function useClientes(filtros?: ClienteFiltros) {
-  const [clientes, setClientes] = useState<ClienteExtendido[]>([])
+  const [clientes, setClientes] = useState<ClienteTablaRow[]>([])
+  const [estadisticas, setEstadisticas] = useState<ClienteEstadisticasSP | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadingStats, setLoadingStats] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
 
-  // Función para obtener clientes con información extendida
-  const fetchClientes = async () => {
+  const fetchClientes = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
 
-      // Primero, probar la conexión básica
-      console.log("🔍 Probando conexión a Supabase...")
-      const connectionTest = await testSupabaseConnection()
-      if (!connectionTest) {
-        throw new Error("No se pudo conectar a Supabase")
-      }
-
-      // Consulta simplificada para evitar problemas de RLS
-      console.log("📊 Obteniendo clientes...")
-      let query = supabase
-        .from("deudores")
-        .select("*")
-
-      // Aplicar filtros
-      if (filtros?.busqueda) {
-        query = query.or(
-          `nombre.ilike.%${filtros.busqueda}%,apellido.ilike.%${filtros.busqueda}%,cedula.eq.${filtros.busqueda}`
-        )
-      }
-
-      if (filtros?.estado) {
-        query = query.eq("estado", filtros.estado)
-      }
-
-      if (filtros?.empresa_id) {
-        query = query.eq("empresa_id", filtros.empresa_id)
-      }
-
-      const { data, error: fetchError } = await query.order("fecha_creacion", { ascending: false })
-
-      if (fetchError) {
-        console.error("❌ Error de Supabase:", fetchError)
-        
-        // Manejar error específico de RLS
-        if (fetchError.code === "42P17") {
-          throw new Error("Error de configuración de seguridad en la base de datos. Contacta al administrador.")
-        }
-        
-        throw fetchError
-      }
-
-      console.log("✅ Clientes obtenidos:", data?.length || 0)
-
-      // Procesar datos básicos (sin relaciones complejas por ahora)
-      const clientesExtendidos: ClienteExtendido[] = (data || []).map((cliente: any) => ({
-        ...cliente,
-        prestamosActivos: 0, // Temporalmente en 0 hasta resolver RLS
-        totalDeuda: 0, // Temporalmente en 0 hasta resolver RLS
-        ultimoPago: null,
-        ruta: null
-      }))
-
-      setClientes(clientesExtendidos)
-    } catch (err) {
-      console.error("❌ Error completo:", err)
-      const errorMessage = err instanceof Error ? err.message : "Error al cargar clientes"
-      setError(errorMessage)
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive"
+      const { data, error: rpcError } = await supabase.rpc("get_clientes_tabla", {
+        p_busqueda: filtros?.busqueda || null,
+        p_estado: filtros?.estado || null,
       })
+
+      if (rpcError) throw rpcError
+      setClientes(data || [])
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Error al cargar clientes"
+      setError(msg)
+      toast({ title: "Error", description: msg, variant: "destructive" })
     } finally {
       setLoading(false)
     }
-  }
+  }, [filtros?.busqueda, filtros?.estado])
 
-  // Crear nuevo cliente
+  const fetchEstadisticas = useCallback(async () => {
+    try {
+      setLoadingStats(true)
+      const { data, error: rpcError } = await supabase.rpc("get_clientes_estadisticas")
+      if (rpcError) throw rpcError
+      setEstadisticas((data as ClienteEstadisticasSP[])?.[0] ?? null)
+    } catch {
+      // stats son opcionales, no bloquean la UI
+    } finally {
+      setLoadingStats(false)
+    }
+  }, [])
+
   const crearCliente = async (clienteData: ClienteInsert): Promise<Cliente | null> => {
     try {
-      setLoading(true)
-      
       const { data, error: insertError } = await supabase
         .from("deudores")
         .insert([clienteData])
@@ -102,71 +70,37 @@ export function useClientes(filtros?: ClienteFiltros) {
 
       if (insertError) throw insertError
 
-      toast({
-        title: "Cliente creado",
-        description: "El cliente ha sido creado exitosamente"
-      })
-
-      // Recargar la lista
-      await fetchClientes()
-      
+      toast({ title: "Cliente creado", description: "El cliente ha sido creado exitosamente" })
+      await Promise.all([fetchClientes(), fetchEstadisticas()])
       return data
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Error al crear cliente"
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive"
-      })
+      const msg = err instanceof Error ? err.message : "Error al crear cliente"
+      toast({ title: "Error", description: msg, variant: "destructive" })
       return null
-    } finally {
-      setLoading(false)
     }
   }
 
-  // Actualizar cliente
   const actualizarCliente = async (id: string, clienteData: ClienteUpdate): Promise<boolean> => {
     try {
-      setLoading(true)
-      
       const { error: updateError } = await supabase
         .from("deudores")
-        .update({
-          ...clienteData,
-          fecha_actualizacion: new Date().toISOString()
-        })
+        .update({ ...clienteData, fecha_actualizacion: new Date().toISOString() })
         .eq("id", id)
 
       if (updateError) throw updateError
 
-      toast({
-        title: "Cliente actualizado",
-        description: "Los datos del cliente han sido actualizados"
-      })
-
-      // Recargar la lista
-      await fetchClientes()
-      
+      toast({ title: "Cliente actualizado", description: "Los datos han sido actualizados" })
+      await Promise.all([fetchClientes(), fetchEstadisticas()])
       return true
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Error al actualizar cliente"
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive"
-      })
+      const msg = err instanceof Error ? err.message : "Error al actualizar cliente"
+      toast({ title: "Error", description: msg, variant: "destructive" })
       return false
-    } finally {
-      setLoading(false)
     }
   }
 
-  // Eliminar cliente
   const eliminarCliente = async (id: string): Promise<boolean> => {
     try {
-      setLoading(true)
-      
-      // Verificar si tiene préstamos activos
       const { data: prestamos } = await supabase
         .from("prestamos")
         .select("id")
@@ -177,155 +111,65 @@ export function useClientes(filtros?: ClienteFiltros) {
         toast({
           title: "No se puede eliminar",
           description: "El cliente tiene préstamos activos",
-          variant: "destructive"
+          variant: "destructive",
         })
         return false
       }
 
-      const { error: deleteError } = await supabase
-        .from("deudores")
-        .delete()
-        .eq("id", id)
-
+      const { error: deleteError } = await supabase.from("deudores").delete().eq("id", id)
       if (deleteError) throw deleteError
 
-      toast({
-        title: "Cliente eliminado",
-        description: "El cliente ha sido eliminado exitosamente"
-      })
-
-      // Recargar la lista
-      await fetchClientes()
-      
+      toast({ title: "Cliente eliminado", description: "El cliente ha sido eliminado" })
+      await Promise.all([fetchClientes(), fetchEstadisticas()])
       return true
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Error al eliminar cliente"
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive"
-      })
+      const msg = err instanceof Error ? err.message : "Error al eliminar cliente"
+      toast({ title: "Error", description: msg, variant: "destructive" })
       return false
-    } finally {
-      setLoading(false)
     }
   }
 
-  // Obtener estadísticas
-  const obtenerEstadisticas = async (): Promise<ClienteEstadisticas | null> => {
-    try {
-      const { data: clientesData } = await supabase
-        .from("deudores")
-        .select(`
-          estado,
-          prestamos!prestamos_deudor_id_fkey (
-            estado,
-            monto_total
-          )
-        `)
-
-      if (!clientesData) return null
-
-      const totalClientes = clientesData.length
-      const clientesActivos = clientesData.filter(c => c.estado === "activo").length
-      const clientesMorosos = clientesData.filter(c => c.estado === "moroso").length
-      
-      let deudaTotal = 0
-      let prestamosActivos = 0
-
-      clientesData.forEach((cliente: any) => {
-        const prestamosActivosCliente = cliente.prestamos?.filter((p: any) => p.estado === "activo") || []
-        prestamosActivos += prestamosActivosCliente.length
-        deudaTotal += prestamosActivosCliente.reduce((sum: number, p: any) => sum + (p.monto_total || 0), 0)
-      })
-
-      return {
-        totalClientes,
-        clientesActivos,
-        clientesMorosos,
-        deudaTotal,
-        prestamosActivos
-      }
-    } catch (err) {
-      console.error("Error al obtener estadísticas:", err)
-      return null
-    }
-  }
-
-  // Cargar datos al montar el componente o cambiar filtros
-  useEffect(() => {
-    fetchClientes()
-  }, [filtros?.busqueda, filtros?.estado, filtros?.empresa_id])
+  useEffect(() => { fetchClientes() }, [fetchClientes])
+  useEffect(() => { fetchEstadisticas() }, [fetchEstadisticas])
 
   return {
     clientes,
+    estadisticas,
     loading,
+    loadingStats,
     error,
     crearCliente,
     actualizarCliente,
     eliminarCliente,
-    obtenerEstadisticas,
-    refetch: fetchClientes
+    refetch: fetchClientes,
   }
 }
 
-// Hook para obtener un cliente específico
+// Hook para un cliente individual (sin cambios)
 export function useCliente(id: string) {
-  const [cliente, setCliente] = useState<ClienteExtendido | null>(null)
+  const [cliente, setCliente] = useState<Cliente | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchCliente = async () => {
+    if (!id) return
+    const fetch = async () => {
       try {
         setLoading(true)
-        setError(null)
-
         const { data, error: fetchError } = await supabase
           .from("deudores")
-          .select(`
-            *,
-            prestamos!prestamos_deudor_id_fkey (
-              *,
-              rutas!prestamos_ruta_id_fkey (
-                nombre_ruta
-              )
-            )
-          `)
+          .select("*")
           .eq("id", id)
           .single()
-
         if (fetchError) throw fetchError
-
-        // Procesar datos
-        const prestamosActivos = data.prestamos?.filter((p: any) => p.estado === "activo") || []
-        const totalDeuda = prestamosActivos.reduce((sum: number, p: any) => sum + (p.monto_total || 0), 0)
-        const ultimoPago = prestamosActivos.reduce((latest: string | null, p: any) => {
-          if (!p.fecha_ultimo_pago) return latest
-          if (!latest) return p.fecha_ultimo_pago
-          return p.fecha_ultimo_pago > latest ? p.fecha_ultimo_pago : latest
-        }, null)
-
-        const clienteExtendido: ClienteExtendido = {
-          ...data,
-          prestamosActivos: prestamosActivos.length,
-          totalDeuda,
-          ultimoPago,
-          ruta: prestamosActivos[0]?.rutas?.nombre_ruta || null
-        }
-
-        setCliente(clienteExtendido)
+        setCliente(data)
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "Error al cargar cliente"
-        setError(errorMessage)
+        setError(err instanceof Error ? err.message : "Error al cargar cliente")
       } finally {
         setLoading(false)
       }
     }
-
-    if (id) {
-      fetchCliente()
-    }
+    fetch()
   }, [id])
 
   return { cliente, loading, error }

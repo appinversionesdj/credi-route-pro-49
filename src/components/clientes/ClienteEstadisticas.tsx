@@ -1,110 +1,81 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ClienteEstadisticas as EstadisticasType } from "@/types/cliente"
-import { Users, UserCheck, UserX, DollarSign } from "lucide-react"
+import { Users, UserCheck, UserX, DollarSign, CreditCard } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { ClienteEstadisticasSP } from "@/types/cliente"
+import { formatCOP } from "@/lib/contabilidad-utils"
+import { cn } from "@/lib/utils"
 
-interface ClienteEstadisticasProps {
-  estadisticas: EstadisticasType | null
-  loading?: boolean
+interface Props {
+  estadisticas: ClienteEstadisticasSP | null
+  loading: boolean
 }
 
-export default function ClienteEstadisticas({ estadisticas, loading }: ClienteEstadisticasProps) {
+const stats = (e: ClienteEstadisticasSP) => [
+  {
+    label: "Total Clientes",
+    value: e.total_clientes.toString(),
+    icon: Users,
+    color: "text-primary",
+    bg: "bg-primary/10",
+  },
+  {
+    label: "Activos",
+    value: e.clientes_activos.toString(),
+    icon: UserCheck,
+    color: "text-success",
+    bg: "bg-success/10",
+  },
+  {
+    label: "Morosos",
+    value: e.clientes_morosos.toString(),
+    icon: UserX,
+    color: "text-destructive",
+    bg: "bg-destructive/10",
+  },
+  {
+    label: "Préstamos Activos",
+    value: e.prestamos_activos.toString(),
+    icon: CreditCard,
+    color: "text-indigo-500",
+    bg: "bg-indigo-500/10",
+  },
+  {
+    label: "Deuda Total",
+    value: formatCOP(e.deuda_total),
+    icon: DollarSign,
+    color: "text-warning",
+    bg: "bg-warning/10",
+  },
+]
+
+export default function ClienteEstadisticas({ estadisticas, loading }: Props) {
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Resumen de Clientes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="text-center p-4 bg-gray-100 rounded-lg animate-pulse">
-                <div className="h-8 bg-gray-300 rounded mb-2"></div>
-                <div className="h-4 bg-gray-300 rounded"></div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 rounded-xl" />
+        ))}
+      </div>
     )
   }
 
-  if (!estadisticas) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Resumen de Clientes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">No se pudieron cargar las estadísticas</p>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  const estadisticasItems = [
-    {
-      titulo: "Total Clientes",
-      valor: estadisticas.totalClientes,
-      icono: Users,
-      color: "bg-blue-100 text-blue-800",
-      iconColor: "text-blue-600"
-    },
-    {
-      titulo: "Clientes Activos",
-      valor: estadisticas.clientesActivos,
-      icono: UserCheck,
-      color: "bg-green-100 text-green-800",
-      iconColor: "text-green-600"
-    },
-    {
-      titulo: "Clientes Morosos",
-      valor: estadisticas.clientesMorosos,
-      icono: UserX,
-      color: "bg-red-100 text-red-800",
-      iconColor: "text-red-600"
-    },
-    {
-      titulo: "Deuda Total",
-      valor: `$${estadisticas.deudaTotal.toLocaleString('es-CO')}`,
-      icono: DollarSign,
-      color: "bg-yellow-100 text-yellow-800",
-      iconColor: "text-yellow-600"
-    }
-  ]
+  if (!estadisticas) return null
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Users className="w-5 h-5" />
-          Resumen de Clientes
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {estadisticasItems.map((item, index) => {
-            const IconComponent = item.icono
-            return (
-              <div key={index} className={`text-center p-4 rounded-lg ${item.color}`}>
-                <div className="flex items-center justify-center mb-2">
-                  <IconComponent className={`w-6 h-6 ${item.iconColor}`} />
-                </div>
-                <p className="text-2xl font-bold">{item.valor}</p>
-                <p className="text-sm opacity-80">{item.titulo}</p>
-              </div>
-            )
-          })}
-        </div>
-        
-        {estadisticas.prestamosActivos > 0 && (
-          <div className="mt-4 pt-4 border-t">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Préstamos Activos:</span>
-              <span className="font-semibold">{estadisticas.prestamosActivos}</span>
-            </div>
+    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
+      {stats(estadisticas).map((s) => (
+        <div
+          key={s.label}
+          className="flex items-center gap-3 p-4 rounded-xl border border-border/60 bg-card shadow-sm"
+        >
+          <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0", s.bg)}>
+            <s.icon className={cn("w-5 h-5", s.color)} />
           </div>
-        )}
-      </CardContent>
-    </Card>
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground truncate">{s.label}</p>
+            <p className={cn("text-lg font-bold truncate", s.color)}>{s.value}</p>
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }

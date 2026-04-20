@@ -77,9 +77,9 @@ export default function Dashboard() {
     filtros.rutaIds.length > 0 ? filtros.rutaIds.length : rutas.length
 
   return (
-    <div className="p-6 space-y-6 bg-gradient-to-br from-background via-background to-muted/20 min-h-full">
+    <div className="p-3 sm:p-4 xl:p-6 space-y-4 xl:space-y-6 bg-gradient-to-br from-background via-background to-muted/20 min-h-full overflow-x-hidden">
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <div className="flex flex-col gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
@@ -89,7 +89,7 @@ export default function Dashboard() {
             {filtros.rutaIds.length > 0 && ` · ${filtros.rutaIds.length} ruta${filtros.rutaIds.length > 1 ? 's' : ''}`}
           </p>
         </div>
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <DashboardFiltros
             rutas={rutas}
             filtros={filtros}
@@ -128,7 +128,7 @@ export default function Dashboard() {
           {/* Fila 1: Salud del Negocio (Premium) */}
           <div className="grid grid-cols-1 gap-4">
             {/* Grupo de Salud: Cartera, Caja y Préstamos (4 columnas) */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 p-1.5 rounded-[22px] bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 border border-white/10 shadow-2xl relative overflow-hidden group/container">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 xl:gap-4 p-1.5 rounded-[22px] bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 border border-white/10 shadow-2xl relative overflow-hidden group/container">
               <div className="absolute inset-0 bg-grid-white/[0.02] bg-[size:20px_20px]" />
               <KPICard
                 title="Cartera Total"
@@ -166,7 +166,7 @@ export default function Dashboard() {
           </div>
 
           {/* Fila 2: Operativa e Ingresos (4 columnas) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 xl:gap-4">
             <KPICard
               title="Ingresos por Intereses"
               value={formatCOP(c.intereses)}
@@ -200,17 +200,17 @@ export default function Dashboard() {
       )}
 
       {/* ── Gráfico + Salud ────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 xl:gap-6 items-stretch">
         <div className="lg:col-span-2 flex flex-col">
           {loading || !data ? (
-            <Skeleton className="h-[480px] rounded-xl" />
+            <Skeleton className="h-[320px] xl:h-[440px] rounded-xl" />
           ) : (
             <GraficoCarteraSemanal datos={data.datosSemana} />
           )}
         </div>
         <div className="flex flex-col">
           {loading || !c ? (
-            <Skeleton className="h-[480px] rounded-xl" />
+            <Skeleton className="h-[320px] xl:h-[440px] rounded-xl" />
           ) : (
             <SaludCartera consolidado={c} />
           )}

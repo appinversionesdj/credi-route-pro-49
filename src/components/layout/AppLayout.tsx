@@ -32,19 +32,19 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="min-h-screen flex w-full bg-background">
+      <div className="min-h-screen flex w-full bg-background overflow-hidden">
         <AppSidebar />
         
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {/* Header */}
           <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-between px-6">
             <div className="flex items-center gap-4">
-              <SidebarTrigger className="lg:hidden" />
-              <div className="relative max-w-md">
+              <SidebarTrigger />
+              <div className="relative w-40 sm:w-56 lg:w-72 xl:w-80">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Buscar cliente, préstamo..." 
-                  className="pl-10 w-80 bg-background"
+                <Input
+                  placeholder="Buscar cliente, préstamo..."
+                  className="pl-10 w-full bg-background"
                 />
               </div>
             </div>
